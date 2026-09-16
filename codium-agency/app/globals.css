@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background: #f6f7f9;
+  color: #13294a;
+}
+
+::selection {
+  background: #c08a74;
+  color: white;
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: white;
+  color: #13294a;
+}
+.input:focus {
+  border-color: #c08a74;
+  box-shadow: 0 0 0 3px rgba(192, 138, 116, 0.15);
+}
