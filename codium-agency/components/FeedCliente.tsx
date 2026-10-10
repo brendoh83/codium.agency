@@ -27,6 +27,7 @@ const PONTO = { pendente: "bg-warn", reprovado: "bg-danger", aprovado: "bg-ok" }
 const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper-500 focus-visible:ring-offset-2";
 const TOQUE = "transition-transform duration-150 motion-safe:active:scale-[0.97]";
 const BOTAO_PRIMARIO = `inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-950 disabled:opacity-50 ${TOQUE} ${FOCO}`;
+const BOTAO_APROVAR = `inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#1B8A4B] px-4 text-sm font-semibold text-white hover:bg-[#157A40] disabled:opacity-50 ${TOQUE} ${FOCO}`;
 const BOTAO_SECUNDARIO = `inline-flex min-h-[48px] items-center justify-center rounded-xl border border-line bg-white px-4 text-sm font-semibold text-navy-900 hover:border-navy-700/40 disabled:opacity-50 ${TOQUE} ${FOCO}`;
 
 function reduzMovimento() {
@@ -82,10 +83,51 @@ function SemArquivo({ item, className }: { item: ItemFeed; className: string }) 
   );
 }
 
-export function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
+export function Midia({
+  item,
+  grande,
+  preencher,
+}: {
+  item: ItemFeed;
+  grande?: boolean;
+  /** Ocupa toda a área do pai (o pai precisa ter altura): mídia inteira, sem moldura. */
+  preencher?: boolean;
+}) {
   const c = useCarregada(item.expirada ? null : item.url);
-  if (item.expirada || !item.url) return <SemArquivo item={item} className="aspect-video rounded-xl text-sm" />;
+  if (item.expirada || !item.url) {
+    return (
+      <SemArquivo
+        item={item}
+        className={preencher ? "absolute inset-0 text-sm" : "aspect-video rounded-xl text-sm"}
+      />
+    );
+  }
   const fade = `relative transition-opacity duration-500 ${c.pronto ? "opacity-100" : "opacity-0"}`;
+  if (preencher) {
+    return (
+      <div className="absolute inset-0 overflow-hidden bg-navy-950">
+        {!c.pronto && <div aria-hidden className="skeleton absolute inset-0" />}
+        {item.tipo === "imagem" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            {...c.img}
+            src={item.url}
+            alt={item.titulo}
+            className={`absolute inset-0 h-full w-full object-contain ${fade}`}
+          />
+        ) : (
+          <video
+            {...c.video}
+            src={item.url}
+            controls
+            playsInline
+            preload="auto"
+            className={`absolute inset-0 h-full w-full bg-navy-950 object-contain ${fade}`}
+          />
+        )}
+      </div>
+    );
+  }
   return (
     <div className={`relative overflow-hidden rounded-xl bg-[#F4F0EC] ${c.pronto ? "" : "min-h-[45vh]"}`}>
       {!c.pronto && <div aria-hidden className="skeleton absolute inset-0" />}
@@ -275,20 +317,18 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         role="dialog"
         aria-modal="true"
         aria-labelledby="detalhe-titulo"
-        className={`max-h-[94vh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 shadow-sheet sm:rounded-2xl sm:px-6 sm:pb-6 sm:pt-5 sm:shadow-dialog ${
+        className={`flex h-[100dvh] w-full max-w-xl flex-col overflow-hidden bg-white shadow-sheet sm:h-[min(92vh,840px)] sm:rounded-2xl sm:shadow-dialog ${
           saindo
             ? "motion-safe:animate-sheet-out sm:motion-safe:animate-modal-out"
             : "motion-safe:animate-sheet-in sm:motion-safe:animate-modal-in"
         }`}
       >
-        <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-line sm:hidden" />
-
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 pt-1">
-            <h3 id="detalhe-titulo" className="break-words font-display text-[21px] font-medium leading-snug text-navy-900">
+        <header className="flex shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] sm:px-6 sm:pt-4">
+          <div className="min-w-0">
+            <h3 id="detalhe-titulo" className="truncate font-display text-[18px] font-medium leading-snug text-navy-900">
               {item.titulo}
             </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <Selo estado={item.estado} className="border border-line shadow-none" />
               {item.estado === "pendente" && item.numero > 1 && (
                 <span className="rounded-full bg-copper-100 px-2 py-0.5 text-[10.5px] font-medium text-copper-700">
@@ -301,28 +341,31 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             type="button"
             onClick={fechar}
             aria-label="Fechar"
-            className={`-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-paper ${TOQUE} ${FOCO}`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-paper ${TOQUE} ${FOCO}`}
           >
             <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
               <path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </button>
+        </header>
+
+        <div className="relative min-h-0 flex-1 bg-navy-950">
+          <Midia item={item} grande preencher />
         </div>
 
-        <div className="mt-4">
-          <Midia item={item} grande />
-        </div>
-
+        <div className="max-h-[46dvh] shrink-0 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-6">
         {item.estado === "reprovado" && (
-          <p className="mt-4 flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
+          <p className="flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
             <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-copper-500" />
             Aguardando a nova versão da agência.
           </p>
         )}
 
         {item.historico.length > 0 && (
-          <section className="mt-5">
-            <h4 className="text-[10.5px] font-medium uppercase tracking-[0.22em] text-copper-700">Histórico de ajustes</h4>
+          <details className="mb-3 rounded-xl border border-line px-3.5 py-2.5">
+            <summary className="cursor-pointer list-none text-[10.5px] font-medium uppercase tracking-[0.22em] text-copper-700">
+              Histórico de ajustes ({item.historico.length})
+            </summary>
             <ol className="mt-3 space-y-3 border-l border-line pl-4">
               {item.historico.map((h) => (
                 <li key={h.numero} className="relative text-sm leading-relaxed text-muted-ink">
@@ -332,15 +375,15 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
                 </li>
               ))}
             </ol>
-          </section>
+          </details>
         )}
 
         {podeResponder && modo !== "reprovar" && (
-          <div className="mt-6 flex gap-2.5">
+          <div className="flex gap-2.5">
             <button onClick={() => setModo("reprovar")} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
               Reprovar
             </button>
-            <button onClick={() => setModo("confirmar")} className={`flex-1 ${BOTAO_PRIMARIO}`}>
+            <button onClick={() => setModo("confirmar")} className={`flex-1 ${BOTAO_APROVAR}`}>
               <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
                 <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -350,7 +393,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         )}
 
         {podeResponder && modo === "reprovar" && (
-          <div className="mt-6 space-y-3 motion-safe:animate-fade-up">
+          <div className="space-y-3 motion-safe:animate-fade-up">
             <label htmlFor="motivo" className="block text-sm font-medium text-navy-900">
               O que precisa mudar?
               <span className="ml-1 font-normal text-muted-ink">(obrigatório)</span>
@@ -391,6 +434,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             {erro}
           </p>
         )}
+        </div>
       </div>
 
       {modo === "confirmar" && (
@@ -426,7 +470,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
                   <button onClick={() => setModo(null)} disabled={pendente} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
                     Não
                   </button>
-                  <button onClick={() => enviar("aprovado")} disabled={pendente} className={`flex-1 ${BOTAO_PRIMARIO}`}>
+                  <button onClick={() => enviar("aprovado")} disabled={pendente} className={`flex-1 ${BOTAO_APROVAR}`}>
                     {pendente ? "Aprovando…" : "Sim"}
                   </button>
                 </div>
