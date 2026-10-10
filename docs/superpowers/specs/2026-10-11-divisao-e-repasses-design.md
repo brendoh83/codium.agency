@@ -25,17 +25,25 @@ Parte 1 de 3 do financeiro. Depois: serviços avulsos; despesas recorrentes.
 - `a_repassar_* = devido_* − repassado_*` (o que ainda falta chegar à conta do sócio) e `disponivel_* = entrou_* − repassado_*` (o que já entrou e ainda não foi repassado).
 - **Excedente de um sócio**: `excesso_x = max(0, repassado_x − devido_x)`. Receber a mais que a própria parte é **aceito** (provavelmente foi usado em algo da empresa) e é **descontado do caixa**: `caixa_apos_retiradas = devido_caixa − excesso_brendo − excesso_victor`.
 - **Diferença de movimentação**: se `caixa_apos_retiradas < 0`, os repasses somam mais que o faturamento do mês: `diferenca = repassado_brendo + repassado_victor − faturamento`. Isso indica um serviço ou entrada que ficou de fora do cadastro e gera aviso (ver Interface).
-- O **saldo do caixa** passa a ser `entrou_caixa − despesas do mês − excessos dos sócios`.
+- **O caixa acumula de um mês para o outro** (decisão do dono). Para cada mês:
+  `saldo_inicial(M) = saldo_final(M−1)` (zero no primeiro mês com movimento),
+  `entradas(M) = entrou_caixa(M)`,
+  `saidas(M) = despesas(M) + excessos dos sócios(M)`,
+  `saldo_final(M) = saldo_inicial(M) + entradas(M) − saidas(M)`.
+  Ex.: sobraram R$ 300 em outubro → novembro começa com R$ 300.
+- Até a parte 3, `despesas(M)` são as despesas cadastradas no mês (comportamento de hoje). Na parte 3 passam a ser só as **pagas**.
 
 ## Dados (Supabase)
+- Nova view `v_caixa_mes(mes, saldo_inicial, entradas, saidas_despesas, saidas_retiradas, saldo_final)` (saldo acumulado entre meses, calculado por soma acumulada ordenada por mês).
 - Nova view `v_divisao_mes(mes, faturamento, devido_brendo, devido_victor, devido_caixa, entrou_brendo, entrou_victor, entrou_caixa, falta_brendo, falta_victor, falta_caixa, repassado_brendo, repassado_victor)`.
 - Nova tabela `repasses(id uuid pk, socio text check in ('brendo','victor'), mes_referencia date, valor numeric > 0, data date not null default current_date, observacao text, created_at)`. RLS: só `authenticated`.
-- `fechamentos_mensais` ganha: `devido_brendo`, `devido_victor`, `devido_caixa`, `repassado_brendo`, `repassado_victor` (nullable, preenchidos ao fechar o mês; meses já fechados ficam sem esses campos).
+- `fechamentos_mensais` ganha: `devido_brendo`, `devido_victor`, `devido_caixa`, `repassado_brendo`, `repassado_victor`, `caixa_saldo_final` (nullable, preenchidos ao fechar o mês; meses já fechados ficam sem esses campos).
 - `v_financeiro_mes` e os campos `liquido_*`/`caixa_total` por pagamento **não mudam** (compatibilidade com Histórico e telas atuais).
 
 ## Interface
 - **Dashboard → "Resumo financeiro — {mês}"**: os cartões do Brendo, do Victor e do Caixa passam a mostrar o **devido sobre o total do mês**, com a linha de apoio "Entrou R$ X · Falta R$ Y". O seletor de mês existente vale para esses números.
 - **Nova seção "Repasses aos sócios — {mês}"** (abaixo do resumo): por sócio, `Devido`, `Repassado`, `A repassar`, com botão **Registrar repasse** (valor, data, observação, mês de referência) e a lista de repasses do mês com opção de excluir. Mostra também o **Caixa do mês após retiradas** (devido do caixa menos os excedentes) e os avisos descritos em "Casos de borda".
+- **Nova seção "Caixa — {mês}" (extrato)**: mostra **para onde o caixa foi**: Saldo anterior; (+) Entrou no mês; (−) cada despesa do mês, listada por descrição e categoria (ex.: Gasolina R$ 120, Internet R$ 70); (−) Retiradas dos sócios acima da parte deles; (=) **Saldo final**, que vira o saldo anterior do mês seguinte.
 - **Nova seção "Recebimentos do mês — divisão por pagamento"**: uma linha por pagamento pago do mês (cliente, valor, pago em, Brendo, Victor, Caixa), com total no rodapé.
 - **Histórico**: cada mês fechado mostra também devido e repassado (quando houver).
 
