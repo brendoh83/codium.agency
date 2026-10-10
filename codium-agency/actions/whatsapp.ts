@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conectar, criarInstancia, estadoConexao, listarGrupos, INSTANCIA_PADRAO } from "@/lib/whatsapp";
-import { avisarClienteConteudo } from "@/lib/avisos-servidor";
+import { avisarClienteConteudo, pendentesDoCliente } from "@/lib/avisos-servidor";
 
 async function usuario() {
   const supabase = createClient();
@@ -117,13 +117,9 @@ export async function salvarGrupoCliente(
 export async function reenviarAviso(clienteId: string): Promise<{ erro?: string; enviado?: boolean }> {
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
-  const { data: conteudos } = await supabase
-    .from("conteudos")
-    .select("titulo, created_at")
-    .eq("cliente_id", clienteId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const titulo = conteudos?.[0]?.titulo ?? "Conteúdos";
+  const pendentes = await pendentesDoCliente(supabase, clienteId);
+  if (pendentes.length === 0) return { erro: "Nenhum conteúdo aguardando aprovação deste cliente." };
+  const titulo = pendentes[0].titulo;
   const r = await avisarClienteConteudo({ supabase, clienteId, tipo: "conteudo_novo", titulo, forcar: true });
   if (r.motivo === "sem_grupo") return { erro: "Este cliente ainda não tem grupo de WhatsApp escolhido." };
   if (!r.enviado) return { erro: r.erro ?? "Não foi possível enviar o aviso." };

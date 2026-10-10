@@ -26,7 +26,7 @@ async function avisarEquipe(
     }
     await supabase.rpc("registrar_aviso", {
       p_token: token,
-      p_tipo: "decisao",
+      p_versao_id: versaoId,
       p_destino: data.grupo_equipe_id,
       p_texto: texto,
       p_ok: ok,

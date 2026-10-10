@@ -34,11 +34,16 @@ async function registrar(
   }
 }
 
-async function contarPendentes(supabase: SupabaseClient, clienteId: string): Promise<number> {
+/** Conteúdos do cliente aguardando resposta (última versão sem decisão e dentro do prazo), do mais novo ao mais antigo. */
+export async function pendentesDoCliente(
+  supabase: SupabaseClient,
+  clienteId: string
+): Promise<{ id: string; titulo: string }[]> {
   const { data } = await supabase
     .from("conteudos")
-    .select("id, conteudo_versoes(numero, decisao, expira_em)")
-    .eq("cliente_id", clienteId);
+    .select("id, titulo, created_at, conteudo_versoes(numero, decisao, expira_em)")
+    .eq("cliente_id", clienteId)
+    .order("created_at", { ascending: false });
   const agora = new Date();
   return (data ?? []).filter((c: any) => {
     const versoes = ((c.conteudo_versoes ?? []) as any[]).map(
@@ -49,7 +54,7 @@ async function contarPendentes(supabase: SupabaseClient, clienteId: string): Pro
       undefined
     );
     return atual && !atual.expirada && estadoConteudo({ versoes }) === "pendente";
-  }).length;
+  }).map((c: any) => ({ id: c.id as string, titulo: c.titulo as string }));
 }
 
 /** Avisa o grupo do cliente. Nunca lança: falhas voltam no resultado e vão para o log. */
@@ -89,7 +94,7 @@ export async function avisarClienteConteudo(i: {
         : textoConteudoNovo({
             empresa: cliente.empresa,
             titulo: i.titulo,
-            pendentes: await contarPendentes(supabase, clienteId),
+            pendentes: (await pendentesDoCliente(supabase, clienteId)).length,
             link,
           });
 
