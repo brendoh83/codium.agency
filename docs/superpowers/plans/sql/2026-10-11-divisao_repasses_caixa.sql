@@ -1,0 +1,5 @@
+-- Migration aplicada no Supabase codium-agency como "divisao_repasses_caixa" (2026-10-11).
+-- Resumo: tabela repasses; colunas novas em fechamentos_mensais; views v_divisao_mes e v_caixa_mes
+-- (security_invoker, sem acesso anon). Regras: 50/50 entre sócios, 10% de cada parte para o caixa,
+-- devido sobre o faturamento total do mês, excedente do sócio sai do caixa, caixa acumulado.
+-- Texto completo: histórico de migrations do projeto.

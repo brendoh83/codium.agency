@@ -22,6 +22,11 @@ export async function fecharMes(mes: string) {
     .eq("mes", mesData)
     .maybeSingle();
 
+  const [{ data: divisao }, { data: caixa }] = await Promise.all([
+    supabase.from("v_divisao_mes").select("*").eq("mes", mesData).maybeSingle(),
+    supabase.from("v_caixa_mes").select("*").eq("mes", mesData).maybeSingle(),
+  ]);
+
   const zerado = {
     faturamento_total: 0,
     total_recebido: 0,
@@ -46,6 +51,12 @@ export async function fecharMes(mes: string) {
       despesas_variaveis: resumo?.despesas_variaveis ?? zerado.despesas_variaveis,
       despesas_totais: resumo?.despesas_totais ?? zerado.despesas_totais,
       saldo_caixa: resumo?.saldo_caixa ?? zerado.saldo_caixa,
+      devido_brendo: divisao?.devido_brendo ?? 0,
+      devido_victor: divisao?.devido_victor ?? 0,
+      devido_caixa: divisao?.devido_caixa ?? 0,
+      repassado_brendo: divisao?.repassado_brendo ?? 0,
+      repassado_victor: divisao?.repassado_victor ?? 0,
+      caixa_saldo_final: caixa?.saldo_final ?? 0,
       fechado_em: new Date().toISOString(),
       fechado_por: user?.id ?? null,
     },
