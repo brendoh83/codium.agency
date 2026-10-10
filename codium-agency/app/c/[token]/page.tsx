@@ -4,6 +4,7 @@ import { createPublicClient } from "@/lib/supabase/publico";
 import { urlLeitura } from "@/lib/r2";
 import { comVersoes, estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import FeedCliente, { type ItemFeed } from "@/components/FeedCliente";
+import { AberturaCliente } from "@/components/AberturaCliente";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Conteúdos para aprovação", robots: { index: false, follow: false } };
@@ -45,11 +46,12 @@ export default async function FeedPage({ params }: { params: { token: string } }
   ]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-xl bg-slate-100 p-4 pb-16">
-      <header className="py-6">
-        <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Codium · Conteúdos</div>
-        <h1 className="text-xl font-semibold text-navy-900">{data.empresa}</h1>
-      </header>
+    <main className="mx-auto max-w-xl overflow-x-clip px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <AberturaCliente
+        empresa={data.empresa}
+        aguardando={itensTopo.filter((i) => i.estado === "pendente").length}
+        aprovados={itensAprovados.length}
+      />
       <FeedCliente token={params.token} topo={itensTopo} aprovados={itensAprovados} />
     </main>
   );

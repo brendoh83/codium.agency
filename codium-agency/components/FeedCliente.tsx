@@ -22,67 +22,189 @@ export const ETIQUETA = {
   aprovado: { texto: "Aprovado", cls: "bg-ok text-white" },
 } as const;
 
-export function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
-  if (item.expirada || !item.url) {
-    return (
-      <div className="flex aspect-video items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">
-        Arquivo expirado
-      </div>
-    );
-  }
-  if (item.tipo === "imagem") {
-    return <img src={item.url} alt={item.titulo} className="max-h-[60vh] w-full rounded-lg object-contain" />;
-  }
+const PONTO = { pendente: "bg-warn", reprovado: "bg-danger", aprovado: "bg-ok" } as const;
+
+const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper-500 focus-visible:ring-offset-2";
+const TOQUE = "transition-transform duration-150 motion-safe:active:scale-[0.97]";
+const BOTAO_PRIMARIO = `inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-950 disabled:opacity-50 ${TOQUE} ${FOCO}`;
+const BOTAO_SECUNDARIO = `inline-flex min-h-[48px] items-center justify-center rounded-xl border border-line bg-white px-4 text-sm font-semibold text-navy-900 hover:border-navy-700/40 disabled:opacity-50 ${TOQUE} ${FOCO}`;
+
+function reduzMovimento() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Marca a mídia como pronta (onLoad, cache já carregado antes da hidratação, erro ou tempo limite). */
+function useCarregada(src: string | null) {
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => {
+    if (!src) return;
+    // iOS nem sempre dispara eventos de vídeo sem interação: não deixa o esqueleto eterno.
+    const t = setTimeout(() => setPronto(true), 4000);
+    return () => clearTimeout(t);
+  }, [src]);
+  const ok = () => setPronto(true);
+  return {
+    pronto,
+    img: {
+      onLoad: ok,
+      onError: ok,
+      ref: (el: HTMLImageElement | null) => {
+        if (el?.complete) ok();
+      },
+    },
+    video: {
+      onLoadedData: ok,
+      onLoadedMetadata: ok,
+      onError: ok,
+      ref: (el: HTMLVideoElement | null) => {
+        if (el && el.readyState >= 1) ok();
+      },
+    },
+  };
+}
+
+function SemArquivo({ item, className }: { item: ItemFeed; className: string }) {
   return (
-    <video
-      src={item.url}
-      controls
-      playsInline
-      preload={grande ? "auto" : "metadata"}
-      className="max-h-[60vh] w-full rounded-lg bg-black"
-    />
+    <div className={`flex flex-col items-center justify-center gap-1.5 bg-[#F1ECE7] px-2 text-center text-muted-ink ${className}`}>
+      <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 text-muted">
+        <path
+          d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5zM4 15l4.5-4 4 3.5L15 12l5 4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span className="text-[11px] font-medium leading-tight">
+        {item.expirada ? "Arquivo expirado" : "Prévia indisponível"}
+      </span>
+    </div>
   );
 }
 
-export function Miniatura({ item, onAbrir }: { item: ItemFeed; onAbrir: () => void }) {
-  const et = ETIQUETA[item.estado];
+export function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
+  const c = useCarregada(item.expirada ? null : item.url);
+  if (item.expirada || !item.url) return <SemArquivo item={item} className="aspect-video rounded-xl text-sm" />;
+  const fade = `relative transition-opacity duration-500 ${c.pronto ? "opacity-100" : "opacity-0"}`;
+  return (
+    <div className={`relative overflow-hidden rounded-xl bg-[#F4F0EC] ${c.pronto ? "" : "min-h-[45vh]"}`}>
+      {!c.pronto && <div aria-hidden className="skeleton absolute inset-0" />}
+      {item.tipo === "imagem" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img {...c.img} src={item.url} alt={item.titulo} className={`max-h-[60vh] w-full object-contain ${fade}`} />
+      ) : (
+        <video
+          {...c.video}
+          src={item.url}
+          controls
+          playsInline
+          preload={grande ? "auto" : "metadata"}
+          className={`max-h-[60vh] w-full bg-black ${fade}`}
+        />
+      )}
+    </div>
+  );
+}
+
+function Selo({ estado, className = "" }: { estado: ItemFeed["estado"]; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[10.5px] font-medium text-navy-900 shadow-sm backdrop-blur ${className}`}
+    >
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${PONTO[estado]}`} />
+      {ETIQUETA[estado].texto}
+    </span>
+  );
+}
+
+export function Miniatura({
+  item,
+  onAbrir,
+  indice,
+}: {
+  item: ItemFeed;
+  onAbrir: () => void;
+  /** Posição na grade: quando informado, entra com fade-up escalonado. */
+  indice?: number;
+}) {
+  const c = useCarregada(item.expirada ? null : item.url);
+  const semArquivo = item.expirada || !item.url;
+  const fade = `transition-[opacity,transform] duration-700 ease-out ${c.pronto ? "opacity-100" : "opacity-0"} motion-safe:group-hover:scale-[1.03]`;
   return (
     <button
       type="button"
       onClick={onAbrir}
-      aria-label={`Abrir ${item.titulo}`}
-      className="relative aspect-[4/5] w-full overflow-hidden bg-slate-300 text-left"
+      aria-label={`Abrir ${item.titulo} (${ETIQUETA[item.estado].texto.toLowerCase()})`}
+      style={indice === undefined ? undefined : { animationDelay: `${Math.min(indice, 12) * 45 + 280}ms` }}
+      className={`group relative aspect-[4/5] w-full overflow-hidden bg-[#EFE8E2] text-left transition-transform duration-150 motion-safe:active:scale-[0.98] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-copper-500 ${
+        indice === undefined ? "" : "motion-safe:animate-fade-up"
+      }`}
     >
-      {item.expirada || !item.url ? (
-        <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[11px] font-medium text-slate-600">
-          Arquivo expirado
-        </span>
-      ) : item.tipo === "imagem" ? (
-        <img src={item.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+      {semArquivo ? (
+        <SemArquivo item={item} className="absolute inset-0" />
       ) : (
-        <video
-          src={`${item.url}#t=0.1`}
-          muted
-          playsInline
-          preload="metadata"
-          className="pointer-events-none h-full w-full object-cover"
-        />
+        <>
+          {!c.pronto && <span aria-hidden className="skeleton absolute inset-0" />}
+          {item.tipo === "imagem" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img {...c.img} src={item.url!} alt="" loading="lazy" className={`h-full w-full object-cover ${fade}`} />
+          ) : (
+            <video
+              {...c.video}
+              src={`${item.url}#t=0.1`}
+              muted
+              playsInline
+              preload="metadata"
+              className={`pointer-events-none h-full w-full object-cover ${fade}`}
+            />
+          )}
+          <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-navy-950/35 to-transparent" />
+        </>
       )}
 
       {item.tipo === "video" && (
-        <span className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">▶</span>
+        <span aria-hidden className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-navy-950/55 backdrop-blur">
+          <svg viewBox="0 0 12 12" className="ml-0.5 h-2.5 w-2.5 fill-white">
+            <path d="M2.5 1.5v9l8-4.5z" />
+          </svg>
+        </span>
       )}
       {item.estado === "pendente" && item.numero > 1 && (
-        <span className="absolute left-1 top-1 rounded bg-copper-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="absolute left-1.5 top-1.5 rounded-full bg-copper-600 px-2 py-0.5 text-[10px] font-semibold text-white">
           Nova versão
         </span>
       )}
-      <span
-        className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${et.cls}`}
-      >
-        {et.texto}
-      </span>
+      <Selo estado={item.estado} className="absolute bottom-1.5 left-1.5" />
     </button>
+  );
+}
+
+function Verificado() {
+  return (
+    <svg aria-hidden viewBox="0 0 56 56" className="h-14 w-14 text-ok motion-safe:animate-pop">
+      <circle
+        cx="28"
+        cy="28"
+        r="26"
+        pathLength={1}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeDasharray="1"
+        className="motion-safe:animate-draw"
+      />
+      <path
+        d="M18 28.5l7 7 13-14"
+        pathLength={1}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="1"
+        className="motion-safe:animate-draw motion-safe:[animation-delay:260ms]"
+      />
+    </svg>
   );
 }
 
@@ -92,9 +214,16 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
   const [modo, setModo] = useState<null | "confirmar" | "reprovar">(null);
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [saindo, setSaindo] = useState(false);
+  const [aprovado, setAprovado] = useState(false);
 
   const podeResponder = item.estado === "pendente" && !item.expirada;
-  const et = ETIQUETA[item.estado];
+
+  function fechar() {
+    if (reduzMovimento()) return onFechar();
+    setSaindo(true);
+    setTimeout(onFechar, 240);
+  }
 
   useEffect(() => {
     const antes = document.body.style.overflow;
@@ -104,26 +233,65 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
     };
   }, []);
 
+  useEffect(() => {
+    function tecla(e: KeyboardEvent) {
+      if (e.key !== "Escape" || pendente || aprovado) return;
+      if (modo === "confirmar") setModo(null);
+      else fechar();
+    }
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  });
+
   function enviar(decisao: "aprovado" | "reprovado") {
     setErro(null);
     start(async () => {
       const r = await responderVersao(token, item.versaoId, decisao, decisao === "reprovado" ? motivo : null);
       if (r.erro) return setErro(r.erro);
+      if (decisao === "aprovado") {
+        // Mostra o "check" antes de atualizar a grade e fechar.
+        setAprovado(true);
+        setTimeout(() => {
+          router.refresh();
+          fechar();
+        }, 1300);
+        return;
+      }
       router.refresh();
-      onFechar();
+      fechar();
     });
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 sm:items-center">
-      <div className="max-h-[94vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+    <div
+      className={`fixed inset-0 z-40 flex items-end justify-center bg-navy-950/60 backdrop-blur-[2px] sm:items-center sm:p-6 ${
+        saindo ? "motion-safe:animate-fade-out" : "motion-safe:animate-fade-in"
+      }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && modo === null && !pendente) fechar();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detalhe-titulo"
+        className={`max-h-[94vh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 shadow-sheet sm:rounded-2xl sm:px-6 sm:pb-6 sm:pt-5 sm:shadow-dialog ${
+          saindo
+            ? "motion-safe:animate-sheet-out sm:motion-safe:animate-modal-out"
+            : "motion-safe:animate-sheet-in sm:motion-safe:animate-modal-in"
+        }`}
+      >
+        <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-line sm:hidden" />
+
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-medium text-navy-900">{item.titulo}</h3>
-            <div className="mt-1 flex flex-wrap gap-1">
-              <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${et.cls}`}>{et.texto}</span>
+          <div className="min-w-0 pt-1">
+            <h3 id="detalhe-titulo" className="break-words font-display text-[21px] font-medium leading-snug text-navy-900">
+              {item.titulo}
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Selo estado={item.estado} className="border border-line shadow-none" />
               {item.estado === "pendente" && item.numero > 1 && (
-                <span className="rounded bg-copper-100 px-1.5 py-0.5 text-[11px] font-medium text-copper-600">
+                <span className="rounded-full bg-copper-100 px-2 py-0.5 text-[10.5px] font-medium text-copper-700">
                   Nova versão atualizada
                 </span>
               )}
@@ -131,107 +299,165 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
           </div>
           <button
             type="button"
-            onClick={onFechar}
+            onClick={fechar}
             aria-label="Fechar"
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600"
+            className={`-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-paper ${TOQUE} ${FOCO}`}
           >
-            ✕
+            <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+              <path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
 
-        <Midia item={item} grande />
+        <div className="mt-4">
+          <Midia item={item} grande />
+        </div>
 
         {item.estado === "reprovado" && (
-          <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+          <p className="mt-4 flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
+            <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-copper-500" />
             Aguardando a nova versão da agência.
           </p>
         )}
 
         {item.historico.length > 0 && (
-          <ul className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-            {item.historico.map((h) => (
-              <li key={h.numero}>
-                <span className="font-medium">Versão {h.numero} reprovada:</span> {h.motivo}
-              </li>
-            ))}
-          </ul>
+          <section className="mt-5">
+            <h4 className="text-[10.5px] font-medium uppercase tracking-[0.22em] text-copper-700">Histórico de ajustes</h4>
+            <ol className="mt-3 space-y-3 border-l border-line pl-4">
+              {item.historico.map((h) => (
+                <li key={h.numero} className="relative text-sm leading-relaxed text-muted-ink">
+                  <span aria-hidden className="absolute -left-[21px] top-[7px] h-2 w-2 rounded-full border border-copper-500 bg-white" />
+                  <span className="block text-[12px] font-semibold text-navy-900">Versão {h.numero} · reprovada</span>
+                  <span className="whitespace-pre-line">{h.motivo}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
         )}
 
         {podeResponder && modo !== "reprovar" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setModo("confirmar")}
-              className="flex-1 rounded-lg bg-ok py-3 text-sm font-semibold text-white"
-            >
-              Aprovar
-            </button>
-            <button
-              onClick={() => setModo("reprovar")}
-              className="flex-1 rounded-lg border border-danger py-3 text-sm font-semibold text-danger"
-            >
+          <div className="mt-6 flex gap-2.5">
+            <button onClick={() => setModo("reprovar")} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
               Reprovar
+            </button>
+            <button onClick={() => setModo("confirmar")} className={`flex-1 ${BOTAO_PRIMARIO}`}>
+              <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+                <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Aprovar
             </button>
           </div>
         )}
 
         {podeResponder && modo === "reprovar" && (
-          <div className="space-y-2">
+          <div className="mt-6 space-y-3 motion-safe:animate-fade-up">
+            <label htmlFor="motivo" className="block text-sm font-medium text-navy-900">
+              O que precisa mudar?
+              <span className="ml-1 font-normal text-muted-ink">(obrigatório)</span>
+            </label>
             <textarea
+              id="motivo"
+              autoFocus
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               rows={4}
               maxLength={2000}
-              placeholder="O que precisa mudar neste conteúdo?"
-              className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+              placeholder="Ex.: trocar a foto de capa, ajustar o texto da legenda…"
+              className="w-full resize-none rounded-xl border border-line bg-paper/60 p-3.5 text-[16px] leading-relaxed text-navy-900 placeholder:text-muted focus:border-copper-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-copper-100"
             />
-            <div className="flex gap-2">
-              <button
-                onClick={() => enviar("reprovado")}
-                disabled={pendente || motivo.trim().length === 0}
-                className="flex-1 rounded-lg bg-danger py-3 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Enviar reprovação
-              </button>
+            <div className="flex gap-2.5">
               <button
                 onClick={() => {
                   setModo(null);
                   setErro(null);
                 }}
-                className="rounded-lg border border-slate-300 px-4 py-3 text-sm text-slate-600"
+                className={BOTAO_SECUNDARIO}
               >
                 Cancelar
+              </button>
+              <button
+                onClick={() => enviar("reprovado")}
+                disabled={pendente || motivo.trim().length === 0}
+                className={`flex-1 ${BOTAO_PRIMARIO}`}
+              >
+                {pendente ? "Enviando…" : "Enviar reprovação"}
               </button>
             </div>
           </div>
         )}
 
-        {erro && <p className="text-sm text-danger">{erro}</p>}
+        {erro && modo !== "confirmar" && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            {erro}
+          </p>
+        )}
       </div>
 
       {modo === "confirmar" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-5 shadow-xl">
-            <p className="text-base font-medium text-navy-900">Deseja aprovar este conteúdo?</p>
-            <p className="text-sm text-slate-500">{item.titulo}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => enviar("aprovado")}
-                disabled={pendente}
-                className="flex-1 rounded-lg bg-ok py-3 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Sim
-              </button>
-              <button
-                onClick={() => setModo(null)}
-                disabled={pendente}
-                className="flex-1 rounded-lg border border-slate-300 py-3 text-sm font-semibold text-slate-700"
-              >
-                Não
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 p-5 motion-safe:animate-fade-in">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirmar-titulo"
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-dialog motion-safe:animate-modal-in"
+          >
+            {aprovado ? (
+              <div role="status" className="flex flex-col items-center py-3 text-center">
+                <Verificado />
+                <p id="confirmar-titulo" className="mt-4 font-display text-xl font-medium text-navy-900 motion-safe:animate-fade-up motion-safe:[animation-delay:300ms]">
+                  Conteúdo aprovado
+                </p>
+                <p className="mt-1 text-sm text-muted-ink motion-safe:animate-fade-up motion-safe:[animation-delay:380ms]">
+                  Obrigado pela confirmação.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p id="confirmar-titulo" className="font-display text-xl font-medium leading-snug text-navy-900">
+                  Deseja aprovar este conteúdo?
+                </p>
+                <p className="mt-1.5 break-words text-sm text-muted-ink">{item.titulo}</p>
+                {erro && (
+                  <p role="alert" className="mt-3 text-sm text-danger">
+                    {erro}
+                  </p>
+                )}
+                <div className="mt-6 flex gap-2.5">
+                  <button onClick={() => setModo(null)} disabled={pendente} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
+                    Não
+                  </button>
+                  <button onClick={() => enviar("aprovado")} disabled={pendente} className={`flex-1 ${BOTAO_PRIMARIO}`}>
+                    {pendente ? "Aprovando…" : "Sim"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Secao({ titulo, total, children }: { titulo: string; total: number; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline gap-3">
+        <h2 className="font-display text-[19px] font-medium text-navy-900">{titulo}</h2>
+        {total > 0 && <span className="text-xs tabular-nums text-muted-ink">{total}</span>}
+        <span aria-hidden className="h-px flex-1 translate-y-[-4px] bg-line" />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Grade({ itens, inicio, onAbrir }: { itens: ItemFeed[]; inicio: number; onAbrir: (id: string) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-[3px] overflow-hidden rounded-xl">
+      {itens.map((i, n) => (
+        <Miniatura key={i.id} item={i} indice={inicio + n} onAbrir={() => onAbrir(i.id)} />
+      ))}
     </div>
   );
 }
@@ -249,38 +475,26 @@ export default function FeedCliente({
   const aberto = [...topo, ...aprovados].find((i) => i.id === abertoId) ?? null;
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-2">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-          Para aprovar{topo.length > 0 ? ` (${topo.length})` : ""}
-        </h2>
-        {topo.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
-            Nada pendente por aqui. Tudo em dia!
-          </p>
-        ) : (
-          <div className="grid grid-cols-3 gap-1">
-            {topo.map((i) => (
-              <Miniatura key={i.id} item={i} onAbrir={() => setAbertoId(i.id)} />
-            ))}
-          </div>
+    <>
+      <div className="space-y-9">
+        <Secao titulo="Para aprovar" total={topo.length}>
+          {topo.length === 0 ? (
+            <p className="rounded-xl border border-line bg-white px-6 py-8 text-center text-sm text-muted-ink motion-safe:animate-fade-up motion-safe:[animation-delay:280ms]">
+              Nenhum conteúdo aguardando você no momento.
+            </p>
+          ) : (
+            <Grade itens={topo} inicio={0} onAbrir={setAbertoId} />
+          )}
+        </Secao>
+
+        {aprovados.length > 0 && (
+          <Secao titulo="Aprovados" total={aprovados.length}>
+            <Grade itens={aprovados} inicio={topo.length} onAbrir={setAbertoId} />
+          </Secao>
         )}
-      </section>
+      </div>
 
-      {aprovados.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Aprovados ({aprovados.length})
-          </h2>
-          <div className="grid grid-cols-3 gap-1">
-            {aprovados.map((i) => (
-              <Miniatura key={i.id} item={i} onAbrir={() => setAbertoId(i.id)} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {aberto && <Detalhe item={aberto} token={token} onFechar={() => setAbertoId(null)} />}
-    </div>
+      {aberto && <Detalhe key={aberto.id} item={aberto} token={token} onFechar={() => setAbertoId(null)} />}
+    </>
   );
 }
