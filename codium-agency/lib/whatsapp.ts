@@ -63,7 +63,12 @@ export async function listarGrupos(instancia: string): Promise<{ id: string; nom
   return (Array.isArray(r) ? r : [])
     .filter((g) => typeof g.id === "string" && g.id.endsWith("@g.us"))
     .map((g) => ({ id: g.id as string, nome: g.subject?.trim() || (g.id as string) }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    .sort((a, b) => {
+      // grupos sem nome (nome = id) vão para o fim da lista
+      const semNomeA = a.nome === a.id ? 1 : 0;
+      const semNomeB = b.nome === b.id ? 1 : 0;
+      return semNomeA - semNomeB || a.nome.localeCompare(b.nome, "pt-BR");
+    });
 }
 
 export const enviarTexto = (instancia: string, jid: string, texto: string) =>
