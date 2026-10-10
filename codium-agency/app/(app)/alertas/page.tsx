@@ -23,6 +23,10 @@ const TIPO_LABEL: Record<string, string> = {
   contrato_vencendo: "Contrato vencendo",
   contrato_vencido: "Contrato vencido",
   tarefa_atrasada: "Tarefa atrasada",
+  despesa_atrasada: "Despesa atrasada",
+  despesa_proxima: "Despesa próxima do vencimento",
+  avulso_atrasado: "Parcela de avulso atrasada",
+  avulso_proximo: "Parcela de avulso próxima",
 };
 
 export default async function AlertasPage() {
@@ -46,7 +50,7 @@ export default async function AlertasPage() {
         {[...criticos, ...atencao, ...positivos].map((a: any, i: number) => (
           <Link
             key={i}
-            href={a.cliente_id ? `/clientes/${a.cliente_id}` : "#"}
+            href={a.cliente_id ? `/clientes/${a.cliente_id}` : String(a.tipo).startsWith("despesa") ? "/despesas" : String(a.tipo).startsWith("avulso") ? "/avulsos" : "#"}
             className={`flex items-center justify-between gap-3 rounded-xl border p-4 text-sm hover:brightness-95 ${NIVEL_STYLE[a.nivel]}`}
           >
             <div className="flex items-center gap-3">

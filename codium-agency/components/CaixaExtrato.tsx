@@ -14,6 +14,8 @@ export interface DespesaLinha {
   categoria: string | null;
   tipo: string;
   valor: number;
+  pago: boolean;
+  vencimento: string | null;
 }
 
 function Linha({
@@ -62,24 +64,42 @@ export default function CaixaExtrato({
       <Linha rotulo="Saldo anterior" valor={caixa.saldo_inicial} />
       <Linha rotulo="Entrou no mês (10% dos pagamentos recebidos)" valor={caixa.entradas} sinal="+" />
 
-      {despesas.length === 0 ? (
-        <Linha rotulo="Despesas do mês" valor={0} sinal="−" />
+      {despesas.filter((d) => d.pago).length === 0 ? (
+        <Linha rotulo="Despesas pagas no mês" valor={0} sinal="−" />
       ) : (
-        despesas.map((d) => (
-          <Linha
-            key={d.id}
-            rotulo={d.descricao}
-            valor={d.valor}
-            sinal="−"
-            detalhe={[d.categoria, d.tipo === "fixa" ? "fixa" : "variável"].filter(Boolean).join(" · ")}
-          />
-        ))
+        despesas
+          .filter((d) => d.pago)
+          .map((d) => (
+            <Linha
+              key={d.id}
+              rotulo={d.descricao}
+              valor={d.valor}
+              sinal="−"
+              detalhe={[d.categoria, d.tipo === "fixa" ? "fixa" : "variável"].filter(Boolean).join(" · ")}
+            />
+          ))
       )}
       {caixa.saidas_retiradas > 0 && (
         <Linha rotulo="Retiradas dos sócios acima da parte deles" valor={caixa.saidas_retiradas} sinal="−" />
       )}
 
       <Linha rotulo="Saldo final do caixa" valor={caixa.saldo_final} sinal="=" forte />
+
+      {despesas.some((d) => !d.pago) && (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="mb-1 text-xs font-medium text-slate-500">Despesas ainda a pagar (não saíram do caixa)</p>
+          {despesas
+            .filter((d) => !d.pago)
+            .map((d) => (
+              <Linha
+                key={d.id}
+                rotulo={d.descricao}
+                valor={d.valor}
+                detalhe={d.vencimento ? `vence ${d.vencimento.split("-").reverse().join("/")}` : undefined}
+              />
+            ))}
+        </div>
+      )}
     </div>
   );
 }

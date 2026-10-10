@@ -1,40 +1,55 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { criarDespesa } from "@/actions/despesas";
-import DespesasLista from "@/components/DespesasLista";
+import { garantirDespesasRecorrentes } from "@/actions/despesas";
+import DespesasLista, { type DespesaItem } from "@/components/DespesasLista";
+import NovaDespesa from "@/components/NovaDespesa";
 import StatCard from "@/components/StatCard";
 import { formatBRL, monthLabel, firstDayOfMonth, shiftMonth } from "@/lib/format";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const CATEGORIAS_FIXAS = ["Sistemas", "Assinaturas", "Internet", "Ferramentas"];
-const CATEGORIAS_VARIAVEIS = ["Compra pontual", "Equipamento", "Freelancer", "Serviço eventual"];
-
-export default async function DespesasPage({
-  searchParams,
-}: {
-  searchParams: { mes?: string };
-}) {
+export default async function DespesasPage({ searchParams }: { searchParams: { mes?: string } }) {
+  await garantirDespesasRecorrentes();
   const supabase = createClient();
   const mes = searchParams.mes ?? firstDayOfMonth();
 
-  const { data: despesas } = await supabase
-    .from("despesas")
-    .select("*")
-    .eq("mes_referencia", mes)
-    .order("data", { ascending: false });
+  const [{ data: despesas }, { data: coberturas }, { data: caixa }] = await Promise.all([
+    supabase.from("despesas").select("*").eq("mes_referencia", mes).order("vencimento", { ascending: true }),
+    supabase.from("despesa_coberturas").select("despesa_id, socio, valor"),
+    supabase.from("v_caixa_mes").select("saldo_final").eq("mes", mes).maybeSingle(),
+  ]);
 
-  const lista = despesas ?? [];
-  const totalFixas = lista.filter((d) => d.tipo === "fixa").reduce((s, d) => s + d.valor, 0);
-  const totalVariaveis = lista.filter((d) => d.tipo === "variavel").reduce((s, d) => s + d.valor, 0);
-  const totalGeral = totalFixas + totalVariaveis;
+  const cobPorDespesa = new Map<string, { socio: any; valor: number }[]>();
+  for (const c of (coberturas ?? []) as any[]) {
+    const lista = cobPorDespesa.get(c.despesa_id) ?? [];
+    lista.push({ socio: c.socio, valor: Number(c.valor) });
+    cobPorDespesa.set(c.despesa_id, lista);
+  }
+
+  const itens: DespesaItem[] = ((despesas ?? []) as any[]).map((d) => ({
+    id: d.id,
+    modelo_id: d.modelo_id,
+    descricao: d.descricao,
+    categoria: d.categoria,
+    tipo: d.tipo,
+    valor: Number(d.valor),
+    vencimento: d.vencimento,
+    pago: Boolean(d.pago),
+    data_pagamento: d.data_pagamento,
+    coberturas: cobPorDespesa.get(d.id) ?? [],
+  }));
+
+  const soma = (f: (d: DespesaItem) => boolean) => itens.filter(f).reduce((s, d) => s + d.valor, 0);
+  const totalMes = soma(() => true);
+  const pagas = soma((d) => d.pago);
+  const aPagar = soma((d) => !d.pago);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-navy-900">Despesas</h1>
-          <p className="text-sm text-slate-500">Custos fixos e variáveis da agência</p>
+          <p className="text-sm text-slate-500">Fixas (todo mês) e variáveis (por período). Só o que for pago sai do caixa.</p>
         </div>
         <div className="flex items-center gap-1">
           <Link
@@ -53,51 +68,21 @@ export default async function DespesasPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StatCard label="Despesas fixas" value={formatBRL(totalFixas)} />
-        <StatCard label="Despesas variáveis" value={formatBRL(totalVariaveis)} tone="warn" />
-        <StatCard label="Total de despesas" value={formatBRL(totalGeral)} tone="danger" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard label="Despesas do mês" value={formatBRL(totalMes)} />
+        <StatCard label="Já pagas" value={formatBRL(pagas)} tone="ok" />
+        <StatCard label="A pagar" value={formatBRL(aPagar)} tone={aPagar > 0 ? "warn" : "default"} />
+        <StatCard
+          label="Caixa disponível"
+          value={formatBRL(Number(caixa?.saldo_final ?? 0))}
+          tone={Number(caixa?.saldo_final ?? 0) >= 0 ? "ok" : "danger"}
+          sub="Acumulado até este mês"
+        />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-        <h2 className="mb-3 text-sm font-semibold text-navy-900">Nova despesa</h2>
-        <form action={criarDespesa} className="grid grid-cols-1 gap-3 md:grid-cols-6">
-          <input name="descricao" placeholder="Descrição" required className="input md:col-span-2" />
-          <input
-            name="valor"
-            placeholder="Valor (R$)"
-            required
-            className="input"
-          />
-          <input
-            name="categoria"
-            placeholder="Categoria"
-            list="categorias-despesa"
-            className="input"
-          />
-          <datalist id="categorias-despesa">
-            {[...CATEGORIAS_FIXAS, ...CATEGORIAS_VARIAVEIS].map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <select name="tipo" className="input" defaultValue="variavel">
-            <option value="fixa">Fixa</option>
-            <option value="variavel">Variável</option>
-          </select>
-          <input type="date" name="data" className="input" defaultValue={new Date().toISOString().slice(0, 10)} />
-          <input name="observacao" placeholder="Observação (opcional)" className="input md:col-span-3" />
-          <input type="hidden" name="mes_referencia" value={mes.slice(0, 7)} />
-          <button className="rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-950 md:col-span-3">
-            Adicionar despesa
-          </button>
-        </form>
-        <p className="mt-3 text-xs text-slate-400">
-          Sugestões de categoria fixa: {CATEGORIAS_FIXAS.join(", ")}. Variável:{" "}
-          {CATEGORIAS_VARIAVEIS.join(", ")}.
-        </p>
-      </div>
+      <NovaDespesa mesPadrao={mes.slice(0, 7)} />
 
-      <DespesasLista despesas={lista} />
+      <DespesasLista despesas={itens} />
     </div>
   );
 }

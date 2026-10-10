@@ -18,6 +18,8 @@ export interface DivisaoMes {
   excesso_victor: number;
   caixa_apos_retiradas: number;
   diferenca_movimentacao: number;
+  cobertura_brendo: number;
+  cobertura_victor: number;
 }
 
 export interface RepasseLinha {
@@ -32,7 +34,8 @@ function Coluna({ socio, d }: { socio: Socio; d: DivisaoMes }) {
   const devido = socio === "brendo" ? d.devido_brendo : d.devido_victor;
   const repassado = socio === "brendo" ? d.repassado_brendo : d.repassado_victor;
   const entrou = socio === "brendo" ? d.entrou_brendo : d.entrou_victor;
-  const aRepassar = Math.max(0, devido - repassado);
+  const cobriu = socio === "brendo" ? d.cobertura_brendo : d.cobertura_victor;
+  const aRepassar = Math.max(0, devido - cobriu - repassado);
   return (
     <div className="rounded-lg border border-slate-200 p-3">
       <div className="text-sm font-semibold text-navy-900">{rotuloSocio(socio)}</div>
@@ -45,6 +48,12 @@ function Coluna({ socio, d }: { socio: Socio; d: DivisaoMes }) {
           <dt className="text-slate-500">Já entrou na agência</dt>
           <dd className="text-slate-700">{formatBRL(entrou)}</dd>
         </div>
+        {cobriu > 0 && (
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Cobriu despesas</dt>
+            <dd className="text-slate-700">− {formatBRL(cobriu)}</dd>
+          </div>
+        )}
         <div className="flex justify-between">
           <dt className="text-slate-500">Repassado</dt>
           <dd className="font-medium text-ok">{formatBRL(repassado)}</dd>

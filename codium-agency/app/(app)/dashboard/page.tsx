@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { garantirPagamentosFuturos } from "@/actions/pagamentos";
+import { garantirDespesasRecorrentes } from "@/actions/despesas";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import RepassesSecao, { type DivisaoMes, type RepasseLinha } from "@/components/RepassesSecao";
@@ -16,6 +17,7 @@ export default async function DashboardPage({
   searchParams: { mes?: string; status?: string; servico?: string };
 }) {
   await garantirPagamentosFuturos(3);
+  await garantirDespesasRecorrentes();
   const supabase = createClient();
 
   const mes = searchParams.mes ?? firstDayOfMonth();
@@ -49,7 +51,7 @@ export default async function DashboardPage({
     supabase.from("v_divisao_mes").select("*").eq("mes", mes).maybeSingle(),
     supabase.from("v_caixa_mes").select("*").eq("mes", mes).maybeSingle(),
     supabase.from("repasses").select("*").eq("mes_referencia", mes).order("data", { ascending: false }),
-    supabase.from("despesas").select("id, descricao, categoria, tipo, valor").eq("mes_referencia", mes).order("valor", { ascending: false }),
+    supabase.from("despesas").select("id, descricao, categoria, tipo, valor, pago, vencimento").eq("mes_referencia", mes).order("valor", { ascending: false }),
     supabase
       .from("servico_parcelas")
       .select("id, valor, data_pagamento, servicos_avulsos(descricao, empresa_externa, clientes(empresa))")
@@ -89,6 +91,8 @@ export default async function DashboardPage({
     excesso_victor: num(dv.excesso_victor),
     caixa_apos_retiradas: num(dv.caixa_apos_retiradas),
     diferenca_movimentacao: num(dv.diferenca_movimentacao),
+    cobertura_brendo: num(dv.cobertura_brendo),
+    cobertura_victor: num(dv.cobertura_victor),
   };
   const entrouCaixa = num(dv.entrou_caixa);
   const cx = (caixaMesRow ?? {}) as any;
@@ -112,6 +116,8 @@ export default async function DashboardPage({
     categoria: d.categoria,
     tipo: d.tipo,
     valor: num(d.valor),
+    pago: Boolean(d.pago),
+    vencimento: d.vencimento,
   }));
   const recebimentos: RecebimentoLinha[] = lista
     .filter((p) => p.status_efetivo === "pago")
