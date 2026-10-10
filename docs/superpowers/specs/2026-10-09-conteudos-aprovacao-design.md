@@ -52,3 +52,6 @@ Aviso automático por WhatsApp, comentários em conversa, várias mídias por co
 
 ## Pendências do dono
 Criar conta Cloudflare (exige cartão), bucket R2 e chave de API; cadastrar as variáveis na Vercel.
+
+## Estado
+Implementado e em produção em 2026-10-10 (commit 1772c6c). Testado ponta a ponta: upload real no R2, aprovação, reprovação com motivo, nova versão. Regra de 30 dias ativa no bucket `codium-conteudos`.
