@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  chaveR2, comVersoes, estadoConteudo, mensagemErro, podeNovaVersao, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
+  chaveR2, comVersoes, estadoConteudo, mensagemErro, podeNovaVersao, podeTrocarArquivo, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
   MAX_BYTES, type Conteudo, type Versao,
 } from "./conteudos.ts";
 
@@ -80,4 +80,10 @@ test("comVersoes descarta conteúdo sem versões", () => {
   const ok = c("ok", [v(1, null)]);
   const vazio = c("vazio", []);
   assert.deepEqual(comVersoes([vazio, ok]).map((x) => x.id), ["ok"]);
+});
+
+test("podeTrocarArquivo: só enquanto o cliente não respondeu", () => {
+  assert.equal(podeTrocarArquivo({ decisao: null }), true);
+  assert.equal(podeTrocarArquivo({ decisao: "aprovado" }), false);
+  assert.equal(podeTrocarArquivo({ decisao: "reprovado" }), false);
 });

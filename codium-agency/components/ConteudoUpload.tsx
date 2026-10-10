@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { registrarConteudo, registrarNovaVersao } from "@/actions/conteudos";
+import { registrarConteudo, registrarNovaVersao, trocarArquivo } from "@/actions/conteudos";
 
 function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -22,9 +22,13 @@ function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) =>
 export default function ConteudoUpload({
   clienteId,
   conteudoId,
+  trocar,
+  onConcluido,
 }: {
   clienteId: string;
   conteudoId?: string;
+  trocar?: boolean;
+  onConcluido?: () => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,13 +37,14 @@ export default function ConteudoUpload({
   const [pct, setPct] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
-  const novaVersao = Boolean(conteudoId);
+  const existente = Boolean(conteudoId);
+  const novaVersao = existente && !trocar;
   const ocupado = pct !== null;
 
   async function enviar() {
     setErro(null);
     if (!arquivo) return setErro("Escolha um arquivo.");
-    if (!novaVersao && !titulo.trim()) return setErro("Informe um título.");
+    if (!existente && !titulo.trim()) return setErro("Informe um título.");
     setPct(0);
     try {
       const r = await fetch("/api/conteudos/upload-url", {
@@ -51,14 +56,17 @@ export default function ConteudoUpload({
       if (!r.ok) throw new Error(j.erro ?? "Não foi possível preparar o envio.");
       await enviarArquivo(j.url, arquivo, setPct);
       const base = { clienteId, key: j.key as string, mime: arquivo.type, tamanho: arquivo.size };
-      const res = novaVersao
-        ? await registrarNovaVersao({ ...base, conteudoId: conteudoId as string })
-        : await registrarConteudo({ ...base, titulo });
+      const res = trocar
+        ? await trocarArquivo({ ...base, conteudoId: conteudoId as string })
+        : novaVersao
+          ? await registrarNovaVersao({ ...base, conteudoId: conteudoId as string })
+          : await registrarConteudo({ ...base, titulo });
       if (res.erro) throw new Error(res.erro);
       setTitulo("");
       setArquivo(null);
       if (inputRef.current) inputRef.current.value = "";
       router.refresh();
+      onConcluido?.();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro no envio.");
     } finally {
@@ -68,7 +76,7 @@ export default function ConteudoUpload({
 
   return (
     <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-      {!novaVersao && (
+      {!existente && (
         <input
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
@@ -92,7 +100,7 @@ export default function ConteudoUpload({
           disabled={ocupado}
           className="rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-950 disabled:opacity-50"
         >
-          {novaVersao ? "Subir nova versão" : "Enviar conteúdo"}
+          {trocar ? "Trocar arquivo" : novaVersao ? "Subir nova versão" : "Enviar conteúdo"}
         </button>
         {pct !== null && <span className="text-sm text-slate-500">{pct}%</span>}
       </div>

@@ -48,6 +48,10 @@ export function podeNovaVersao(v: { decisao: Decisao; expirada: boolean }): bool
   return v.decisao === "reprovado" || (v.decisao === null && v.expirada);
 }
 
+export function podeTrocarArquivo(v: { decisao: Decisao }): boolean {
+  return v.decisao === null;
+}
+
 export function comVersoes<T extends { versoes: unknown[] }>(cs: T[]): T[] {
   return cs.filter((c) => c.versoes.length > 0);
 }

@@ -26,5 +26,12 @@ async function assinar(method: "PUT" | "GET", key: string, expiraSeg: number): P
   return assinada.url;
 }
 
+export async function apagarObjeto(key: string): Promise<void> {
+  const { aws, base } = config();
+  const caminho = key.split("/").map(encodeURIComponent).join("/");
+  const r = await aws.fetch(`${base}/${caminho}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`R2 recusou apagar o arquivo (${r.status})`);
+}
+
 export const urlUpload = (key: string) => assinar("PUT", key, 900);
 export const urlLeitura = (key: string) => assinar("GET", key, 3600);

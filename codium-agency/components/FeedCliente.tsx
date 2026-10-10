@@ -16,13 +16,13 @@ export interface ItemFeed {
   historico: { numero: number; motivo: string }[];
 }
 
-const ETIQUETA = {
+export const ETIQUETA = {
   pendente: { texto: "Pendente", cls: "bg-warn text-white" },
   reprovado: { texto: "Reprovado", cls: "bg-danger text-white" },
   aprovado: { texto: "Aprovado", cls: "bg-ok text-white" },
 } as const;
 
-function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
+export function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
   if (item.expirada || !item.url) {
     return (
       <div className="flex aspect-video items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">
@@ -44,7 +44,7 @@ function Midia({ item, grande }: { item: ItemFeed; grande?: boolean }) {
   );
 }
 
-function Miniatura({ item, onAbrir }: { item: ItemFeed; onAbrir: () => void }) {
+export function Miniatura({ item, onAbrir }: { item: ItemFeed; onAbrir: () => void }) {
   const et = ETIQUETA[item.estado];
   return (
     <button
