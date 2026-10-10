@@ -3,22 +3,36 @@ import { criarServico } from "@/actions/servicos";
 import { adicionarEmailPermitido } from "@/actions/usuarios";
 import ServicosConfig from "@/components/ServicosConfig";
 import EmailsPermitidosConfig from "@/components/EmailsPermitidosConfig";
+import WhatsappConfig from "@/components/WhatsappConfig";
+import { statusWhatsapp } from "@/actions/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracoesPage() {
   const supabase = createClient();
-  const [{ data: servicos }, { data: profile }, { data: emailsPermitidos }] = await Promise.all([
-    supabase.from("servicos").select("*").order("nome"),
-    supabase.from("profiles").select("*"),
-    supabase.from("emails_permitidos").select("*").order("criado_em"),
-  ]);
+  const [{ data: servicos }, { data: profile }, { data: emailsPermitidos }, statusWhats, { data: avisos }] =
+    await Promise.all([
+      supabase.from("servicos").select("*").order("nome"),
+      supabase.from("profiles").select("*"),
+      supabase.from("emails_permitidos").select("*").order("criado_em"),
+      statusWhatsapp(),
+      supabase.from("avisos_whatsapp").select("*").order("created_at", { ascending: false }).limit(20),
+    ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-navy-900">Configurações</h1>
         <p className="text-sm text-slate-500">Catálogo de serviços e usuários do sistema</p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
+        <h2 className="mb-3 text-sm font-semibold text-navy-900">WhatsApp (avisos de conteúdo)</h2>
+        <p className="mb-4 text-xs text-slate-400">
+          Conecte o número que envia os avisos e escolha o grupo da equipe. O grupo de cada cliente é
+          escolhido na página dele, em Conteúdos.
+        </p>
+        <WhatsappConfig status={statusWhats} avisos={(avisos ?? []) as any} />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">

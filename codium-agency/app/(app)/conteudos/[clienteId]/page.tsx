@@ -6,6 +6,7 @@ import { estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } 
 import ConteudoUpload from "@/components/ConteudoUpload";
 import ConteudosGrade from "@/components/ConteudosGrade";
 import LinkCliente from "@/components/LinkCliente";
+import GrupoCliente from "@/components/GrupoCliente";
 import type { ItemFeed } from "@/components/FeedCliente";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
   const supabase = createClient();
   const { data: cliente } = await supabase
     .from("clientes")
-    .select("id, empresa, link_token")
+    .select("id, empresa, link_token, whatsapp_grupo_id, whatsapp_grupo_nome")
     .eq("id", params.clienteId)
     .maybeSingle();
   if (!cliente) notFound();
@@ -78,6 +79,11 @@ export default async function ConteudosClientePage({ params }: { params: { clien
       </div>
 
       <LinkCliente clienteId={cliente.id} token={cliente.link_token} />
+      <GrupoCliente
+        clienteId={cliente.id}
+        atualId={cliente.whatsapp_grupo_id}
+        atualNome={cliente.whatsapp_grupo_nome}
+      />
       <ConteudoUpload clienteId={cliente.id} />
 
       <ConteudosGrade clienteId={cliente.id} topo={itensTopo} aprovados={itensAprovados} />
