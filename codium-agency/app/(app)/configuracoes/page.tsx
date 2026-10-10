@@ -7,6 +7,7 @@ import WhatsappConfig from "@/components/WhatsappConfig";
 import { statusWhatsapp } from "@/actions/whatsapp";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function ConfiguracoesPage() {
   const supabase = createClient();

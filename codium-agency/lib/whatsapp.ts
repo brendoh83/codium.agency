@@ -2,6 +2,8 @@
 export const INSTANCIA_PADRAO = "codium-agencia";
 
 const TIMEOUT_MS = 8000;
+// listar grupos pode demorar: o WhatsApp sincroniza todos os grupos da conta
+const TIMEOUT_GRUPOS_MS = 50_000;
 
 function config() {
   const url = process.env.EVOLUTION_URL;
@@ -12,10 +14,10 @@ function config() {
   return { url: url.replace(/\/$/, ""), key };
 }
 
-async function evo<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function evo<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT_MS): Promise<T> {
   const { url, key } = config();
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(`${url}${path}`, {
       ...init,
@@ -58,7 +60,9 @@ export const estadoConexao = (instancia: string) =>
 
 export async function listarGrupos(instancia: string): Promise<{ id: string; nome: string }[]> {
   const r = await evo<{ id?: string; subject?: string }[]>(
-    `/group/fetchAllGroups/${instancia}?getParticipants=false`
+    `/group/fetchAllGroups/${instancia}?getParticipants=false`,
+    {},
+    TIMEOUT_GRUPOS_MS
   );
   return (Array.isArray(r) ? r : [])
     .filter((g) => typeof g.id === "string" && g.id.endsWith("@g.us"))

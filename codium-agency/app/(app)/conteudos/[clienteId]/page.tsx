@@ -10,6 +10,7 @@ import GrupoCliente from "@/components/GrupoCliente";
 import type { ItemFeed } from "@/components/FeedCliente";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type VersaoComChave = Versao & { r2_key: string };
 type Item = Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] };

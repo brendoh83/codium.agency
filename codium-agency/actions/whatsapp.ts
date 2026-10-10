@@ -71,16 +71,46 @@ export async function iniciarConexao(
   }
 }
 
-export async function gruposDisponiveis(): Promise<{
+const CACHE_GRUPOS_MS = 10 * 60 * 1000;
+
+export async function gruposDisponiveis(forcar = false): Promise<{
   erro?: string;
   grupos?: { id: string; nome: string }[];
 }> {
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
   try {
-    return { grupos: await listarGrupos(await instanciaAtual(supabase)) };
+    if (!forcar) {
+      const { data } = await supabase
+        .from("app_config")
+        .select("valor")
+        .eq("chave", "whatsapp_grupos_cache")
+        .maybeSingle();
+      if (data?.valor) {
+        try {
+          const c = JSON.parse(data.valor) as { em: number; grupos: { id: string; nome: string }[] };
+          if (Array.isArray(c.grupos) && c.grupos.length > 0 && Date.now() - c.em < CACHE_GRUPOS_MS) {
+            return { grupos: c.grupos };
+          }
+        } catch {
+          /* cache inválido: busca de novo */
+        }
+      }
+    }
+    const grupos = await listarGrupos(await instanciaAtual(supabase));
+    if (grupos.length > 0) {
+      await supabase
+        .from("app_config")
+        .upsert({ chave: "whatsapp_grupos_cache", valor: JSON.stringify({ em: Date.now(), grupos }) });
+    }
+    return { grupos };
   } catch (e) {
-    return { erro: e instanceof Error ? e.message : "Falha ao listar grupos." };
+    const msg = e instanceof Error ? e.message : "Falha ao listar grupos.";
+    return {
+      erro: /abort/i.test(msg)
+        ? "O WhatsApp demorou demais para listar os grupos. Tente de novo em alguns segundos."
+        : msg,
+    };
   }
 }
 
