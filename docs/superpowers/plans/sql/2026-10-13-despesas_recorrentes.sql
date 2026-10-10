@@ -1,0 +1,6 @@
+-- Migration aplicada no Supabase codium-agency como "despesas_recorrentes" (2026-10-13).
+-- Resumo: despesa_modelos (fixa/variavel, dia de vencimento, mes_inicio, meses); despesas ganha
+-- modelo_id, vencimento, pago, data_pagamento (linhas antigas viram pagas); despesa_coberturas;
+-- v_divisao_mes ganha cobertura_* e usa a parte efetiva no excedente; v_caixa_mes só conta despesas
+-- PAGAS menos coberturas; v_alertas ganha despesa_atrasada e despesa_proxima.
+-- Texto completo: histórico de migrations do projeto.
