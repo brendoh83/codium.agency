@@ -1,0 +1,4 @@
+-- Migration aplicada no Supabase codium-agency como "servicos_avulsos" (2026-10-12).
+-- Resumo: tabelas servicos_avulsos e servico_parcelas (RLS authenticated); v_divisao_mes passa a
+-- somar as parcelas (50/50 fixo); v_alertas ganha avulso_atrasado (critico) e avulso_proximo (atencao).
+-- Texto completo: histórico de migrations do projeto.
