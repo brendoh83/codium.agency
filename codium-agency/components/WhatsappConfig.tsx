@@ -33,6 +33,7 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
   const [numero, setNumero] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [grupos, setGrupos] = useState<{ id: string; nome: string }[] | null>(null);
+  const [filtro, setFiltro] = useState("");
   const [pendente, start] = useTransition();
 
   // enquanto há QR ou código na tela, confere o estado a cada 3 s
@@ -153,16 +154,29 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
               {status.grupoEquipe ? "Trocar grupo" : "Escolher grupo"}
             </button>
           ) : (
-            <select defaultValue="" onChange={(e) => escolherEquipe(e.target.value)} className="input w-full">
-              <option value="" disabled>
-                {grupos.length ? "Selecione um grupo" : "Nenhum grupo encontrado"}
-              </option>
-              {grupos.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.nome}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <input
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                placeholder={`Buscar entre ${grupos.length} grupos…`}
+                className="input w-full"
+              />
+              <select
+                defaultValue=""
+                size={6}
+                disabled={pendente}
+                onChange={(e) => escolherEquipe(e.target.value)}
+                className="input w-full"
+              >
+                {grupos
+                  .filter((g) => g.nome.toLowerCase().includes(filtro.trim().toLowerCase()))
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nome}
+                    </option>
+                  ))}
+              </select>
+            </div>
           )}
         </div>
       )}

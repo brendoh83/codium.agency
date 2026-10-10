@@ -15,6 +15,7 @@ export default function GrupoCliente({
 }) {
   const router = useRouter();
   const [grupos, setGrupos] = useState<{ id: string; nome: string }[] | null>(null);
+  const [filtro, setFiltro] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
   const [pendente, start] = useTransition();
 
@@ -63,16 +64,31 @@ export default function GrupoCliente({
             {atualId ? "Trocar grupo" : "Escolher grupo"}
           </button>
         ) : (
-          <select defaultValue="" onChange={(e) => escolher(e.target.value)} className="input w-full">
-            <option value="" disabled>
-              {grupos.length ? "Selecione um grupo" : "Nenhum grupo encontrado (conecte o WhatsApp)"}
-            </option>
-            {grupos.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.nome}
-              </option>
-            ))}
-          </select>
+          <div className="w-full space-y-2">
+            <input
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+              placeholder={
+                grupos.length ? `Buscar entre ${grupos.length} grupos…` : "Nenhum grupo encontrado (conecte o WhatsApp)"
+              }
+              className="input w-full"
+            />
+            <select
+              defaultValue=""
+              size={6}
+              disabled={pendente}
+              onChange={(e) => escolher(e.target.value)}
+              className="input w-full"
+            >
+              {grupos
+                .filter((g) => g.nome.toLowerCase().includes(filtro.trim().toLowerCase()))
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nome}
+                  </option>
+                ))}
+            </select>
+          </div>
         )}
         {atualId && (
           <button

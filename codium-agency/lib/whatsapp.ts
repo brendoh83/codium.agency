@@ -58,21 +58,28 @@ export const estadoConexao = (instancia: string) =>
     (r) => r.instance?.state ?? "close"
   );
 
+/**
+ * Lista os grupos a partir dos contatos já sincronizados no servidor.
+ * O endpoint /group/fetchAllGroups consulta o WhatsApp ao vivo e trava em contas com muitos grupos.
+ */
 export async function listarGrupos(instancia: string): Promise<{ id: string; nome: string }[]> {
-  const r = await evo<{ id?: string; subject?: string }[]>(
-    `/group/fetchAllGroups/${instancia}?getParticipants=false`,
-    {},
+  const r = await evo<{ remoteJid?: string; pushName?: string | null; isGroup?: boolean }[]>(
+    `/chat/findContacts/${instancia}`,
+    { method: "POST", body: "{}" },
     TIMEOUT_GRUPOS_MS
   );
-  return (Array.isArray(r) ? r : [])
-    .filter((g) => typeof g.id === "string" && g.id.endsWith("@g.us"))
-    .map((g) => ({ id: g.id as string, nome: g.subject?.trim() || (g.id as string) }))
-    .sort((a, b) => {
-      // grupos sem nome (nome = id) vão para o fim da lista
-      const semNomeA = a.nome === a.id ? 1 : 0;
-      const semNomeB = b.nome === b.id ? 1 : 0;
-      return semNomeA - semNomeB || a.nome.localeCompare(b.nome, "pt-BR");
-    });
+  const porId = new Map<string, { id: string; nome: string }>();
+  for (const c of Array.isArray(r) ? r : []) {
+    const id = c.remoteJid;
+    if (typeof id !== "string" || !id.endsWith("@g.us") || porId.has(id)) continue;
+    porId.set(id, { id, nome: c.pushName?.trim() || id });
+  }
+  return [...porId.values()].sort((a, b) => {
+    // grupos sem nome (nome = id) vão para o fim da lista
+    const semNomeA = a.nome === a.id ? 1 : 0;
+    const semNomeB = b.nome === b.id ? 1 : 0;
+    return semNomeA - semNomeB || a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 export const enviarTexto = (instancia: string, jid: string, texto: string) =>

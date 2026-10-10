@@ -30,12 +30,13 @@ test("enviarTexto: POST com apikey e corpo {number, text}", async () => {
   assert.deepEqual(await r.json(), { number: "1203630@g.us", text: "olá" });
 });
 
-test("listarGrupos: só grupos, nome do subject, ordenado", async () => {
+test("listarGrupos: usa a lista de contatos (rápida), só grupos, nome do pushName, ordenado", async () => {
   const s = stub({ json: [
-    { id: "2@g.us", subject: "Zeta" },
-    { id: "5511@s.whatsapp.net", subject: "Não é grupo" },
-    { id: "1@g.us", subject: "Alecrim Store" },
-    { id: "3@g.us" },
+    { remoteJid: "2@g.us", pushName: "Zeta", isGroup: true },
+    { remoteJid: "5511999990000@s.whatsapp.net", pushName: "Pessoa", isGroup: false },
+    { remoteJid: "1@g.us", pushName: "Alecrim Store", isGroup: true },
+    { remoteJid: "3@g.us", pushName: null, isGroup: true },
+    { remoteJid: "1@g.us", pushName: "Alecrim Store", isGroup: true },
   ] });
   let grupos;
   try { grupos = await listarGrupos("codium-agencia"); } finally { s.restaurar(); }
@@ -44,7 +45,9 @@ test("listarGrupos: só grupos, nome do subject, ordenado", async () => {
     { id: "2@g.us", nome: "Zeta" },
     { id: "3@g.us", nome: "3@g.us" },
   ]);
-  assert.equal(new URL(s.chamadas[0].url).search, "?getParticipants=false");
+  const r = s.chamadas[0];
+  assert.equal(r.method, "POST");
+  assert.equal(new URL(r.url).pathname, "/chat/findContacts/codium-agencia");
 });
 
 test("estadoConexao lê instance.state", async () => {
