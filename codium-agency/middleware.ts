@@ -28,8 +28,9 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login");
   const isPublicAsset = path.startsWith("/_next") || path.startsWith("/favicon");
+  const isPublicFeed = path.startsWith("/c/");
 
-  if (!user && !isAuthRoute && !isPublicAsset) {
+  if (!user && !isAuthRoute && !isPublicAsset && !isPublicFeed) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
