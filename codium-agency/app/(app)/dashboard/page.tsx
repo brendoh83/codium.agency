@@ -34,6 +34,7 @@ export default async function DashboardPage({
     { data: caixaMesRow },
     { data: repassesMes },
     { data: despesasMes },
+    { data: parcelasAvulsasMes },
   ] = await Promise.all([
     supabase.from("v_metricas_gerais").select("*").single(),
     supabase
@@ -49,6 +50,11 @@ export default async function DashboardPage({
     supabase.from("v_caixa_mes").select("*").eq("mes", mes).maybeSingle(),
     supabase.from("repasses").select("*").eq("mes_referencia", mes).order("data", { ascending: false }),
     supabase.from("despesas").select("id, descricao, categoria, tipo, valor").eq("mes_referencia", mes).order("valor", { ascending: false }),
+    supabase
+      .from("servico_parcelas")
+      .select("id, valor, data_pagamento, servicos_avulsos(descricao, empresa_externa, clientes(empresa))")
+      .eq("competencia", mes)
+      .eq("status", "pago"),
   ]);
 
   let lista = (pagamentosMes ?? []) as any[];
@@ -117,6 +123,15 @@ export default async function DashboardPage({
       pct_brendo: num(p.pct_brendo_aplicado ?? 50),
       pct_victor: num(p.pct_victor_aplicado ?? 50),
     }));
+  const recebimentosAvulsos: RecebimentoLinha[] = ((parcelasAvulsasMes ?? []) as any[]).map((a) => ({
+    id: a.id,
+    empresa: `${a.servicos_avulsos?.clientes?.empresa ?? a.servicos_avulsos?.empresa_externa ?? "Avulso"} — ${a.servicos_avulsos?.descricao ?? "serviço avulso"}`,
+    valor: num(a.valor),
+    data_pagamento: a.data_pagamento,
+    pct_brendo: 50,
+    pct_victor: 50,
+  }));
+  const todosRecebimentos = [...recebimentos, ...recebimentosAvulsos];
   const totalBrendo = divisao.devido_brendo;
   const totalVictor = divisao.devido_victor;
   const totalCaixaMes = divisao.devido_caixa;
@@ -202,7 +217,7 @@ export default async function DashboardPage({
 
       <RecebimentosMes
         mesLabel={monthLabel(mes)}
-        linhas={recebimentos}
+        linhas={todosRecebimentos}
         totais={{
           brendo: divisao.entrou_brendo,
           victor: divisao.entrou_victor,

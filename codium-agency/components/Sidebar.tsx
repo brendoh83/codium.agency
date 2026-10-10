@@ -8,6 +8,7 @@ import { signOut } from "@/actions/auth";
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "▦" },
   { href: "/clientes", label: "Clientes", icon: "◍" },
+  { href: "/avulsos", label: "Serviços avulsos", icon: "◆" },
   { href: "/leads", label: "Leads", icon: "◇" },
   { href: "/briefing", label: "Briefing Clientes", icon: "◈" },
   { href: "/conteudos", label: "Conteúdos", icon: "▶" },
