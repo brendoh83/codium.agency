@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { podeNovaVersao, podeTrocarArquivo, tipoPorMime, validarArquivo } from "@/lib/conteudos";
 import { apagarObjeto } from "@/lib/r2";
+import { avisarClienteConteudo } from "@/lib/avisos-servidor";
 
 type Resultado = { erro?: string };
 
@@ -44,6 +45,7 @@ export async function registrarConteudo(i: {
     await supabase.from("conteudos").delete().eq("id", conteudo.id);
     return { erro: "Não foi possível registrar o arquivo." };
   }
+  await avisarClienteConteudo({ supabase, clienteId: i.clienteId, tipo: "conteudo_novo", titulo });
   revalidatePath(`/conteudos/${i.clienteId}`);
   revalidatePath("/conteudos");
   return {};
@@ -63,7 +65,7 @@ export async function registrarNovaVersao(i: {
   const supabase = createClient();
   const { data: conteudo } = await supabase
     .from("conteudos")
-    .select("id, tipo, cliente_id")
+    .select("id, tipo, cliente_id, titulo")
     .eq("id", i.conteudoId)
     .eq("cliente_id", i.clienteId)
     .maybeSingle();
@@ -93,6 +95,12 @@ export async function registrarNovaVersao(i: {
     tamanho: i.tamanho,
   });
   if (error) return { erro: "Não foi possível registrar a nova versão." };
+  await avisarClienteConteudo({
+    supabase,
+    clienteId: i.clienteId,
+    tipo: "nova_versao",
+    titulo: conteudo.titulo,
+  });
   revalidatePath(`/conteudos/${i.clienteId}`);
   revalidatePath("/conteudos");
   return {};
