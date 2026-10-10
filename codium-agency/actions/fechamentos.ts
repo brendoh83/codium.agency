@@ -2,11 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { firstDayOfMonth } from "@/lib/format";
 
 /** Fecha (ou refaz o fechamento de) um mês, congelando os números de v_financeiro_mes em fechamentos_mensais. */
 export async function fecharMes(mes: string) {
   const supabase = createClient();
   const mesData = mes.length === 7 ? `${mes}-01` : mes;
+
+  // mês em andamento (ou futuro) ainda não pode ser fechado
+  if (mesData >= firstDayOfMonth()) return;
 
   const {
     data: { user },

@@ -38,3 +38,16 @@ export function shiftMonth(iso: string, delta: number): string {
   const date = new Date(y, m - 1 + delta, 1);
   return firstDayOfMonth(date);
 }
+
+/** Dias entre o vencimento e a data em que foi pago (0 se em dia, antecipado ou sem data). */
+export function diasDeAtraso(vencimento: string, dataPagamento: string | null | undefined): number {
+  if (!dataPagamento) return 0;
+  const ms = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const v = ms(vencimento);
+  const p = ms(dataPagamento);
+  if (!Number.isFinite(v) || !Number.isFinite(p)) return 0;
+  return Math.max(0, Math.round((p - v) / 86400000));
+}

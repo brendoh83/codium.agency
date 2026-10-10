@@ -61,8 +61,15 @@ function calcularDivisao(valor: number, pctBrendo: number, pctVictor: number) {
   };
 }
 
-export async function marcarPagamentoRecebido(pagamentoId: string, clienteId: string) {
+export async function marcarPagamentoRecebido(
+  pagamentoId: string,
+  clienteId: string,
+  dataPagamento?: string
+) {
   const supabase = createClient();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const data =
+    dataPagamento && /^\d{4}-\d{2}-\d{2}$/.test(dataPagamento) && dataPagamento <= hoje ? dataPagamento : hoje;
 
   const [{ data: pagamento }, { data: cliente }] = await Promise.all([
     supabase.from("pagamentos").select("valor").eq("id", pagamentoId).single(),
@@ -79,7 +86,7 @@ export async function marcarPagamentoRecebido(pagamentoId: string, clienteId: st
     .from("pagamentos")
     .update({
       status: "pago",
-      data_pagamento: new Date().toISOString().slice(0, 10),
+      data_pagamento: data,
       ...divisao,
     })
     .eq("id", pagamentoId);

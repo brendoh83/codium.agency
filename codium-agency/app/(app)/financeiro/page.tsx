@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { garantirPagamentosFuturos } from "@/actions/pagamentos";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
-import { formatBRL, formatDate, monthLabel, firstDayOfMonth, shiftMonth } from "@/lib/format";
+import { diasDeAtraso, formatBRL, formatDate, monthLabel, firstDayOfMonth, shiftMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +75,11 @@ export default async function FinanceiroPage({
               <div className="flex items-center gap-3">
                 <span className="font-medium text-navy-900">{formatBRL(p.valor)}</span>
                 <StatusBadge status={p.status_efetivo} />
+                {p.status_efetivo === "pago" && diasDeAtraso(p.vencimento, p.data_pagamento) > 0 && (
+                  <span className="text-[11px] font-medium text-warn">
+                    com atraso ({diasDeAtraso(p.vencimento, p.data_pagamento)} dias)
+                  </span>
+                )}
               </div>
             </Link>
           ))}

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fecharMes } from "@/actions/fechamentos";
 import HistoricoLista from "@/components/HistoricoLista";
-import { formatBRL, monthLabel, firstDayOfMonth } from "@/lib/format";
+import { formatBRL, formatDate, monthLabel, firstDayOfMonth, shiftMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -40,20 +40,29 @@ export default async function HistoricoPage() {
                 className="rounded-xl border border-dashed border-copper-500/40 bg-copper-100/20 p-5"
               >
                 <h3 className="mb-1 text-sm font-semibold text-navy-900">
-                  {monthLabel(m.mes)} {atual ? "ainda não foi fechado" : "— mês passado, ainda em aberto"}
+                  {monthLabel(m.mes)} {atual ? "— mês em andamento (prévia)" : "— mês passado, ainda em aberto"}
                 </h3>
                 <p className="mb-3 text-xs text-slate-500">
                   Prévia com os números de hoje: faturamento {formatBRL(m.faturamento_total ?? 0)}, recebido{" "}
                   {formatBRL(m.total_recebido ?? 0)}, saldo do caixa {formatBRL(m.saldo_caixa ?? 0)}.
-                  {pendente > 0 && !atual
-                    ? ` Ainda há ${formatBRL(pendente)} sem receber: fechar agora congela sem esse valor, e dá para fechar de novo depois.`
-                    : " Você pode fechar o mês de novo depois, para atualizar os números salvos."}
+                  {atual
+                    ? " Os números mudam conforme os pagamentos entram."
+                    : pendente > 0
+                      ? ` Ainda há ${formatBRL(pendente)} sem receber: marque os pagamentos antes de fechar. Se fechar agora, dá para fechar de novo depois.`
+                      : " Você pode fechar o mês de novo depois, para atualizar os números salvos."}
                 </p>
-                <form action={fecharMes.bind(null, m.mes)}>
-                  <button className="rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-950">
-                    Fechar {monthLabel(m.mes)}
-                  </button>
-                </form>
+                {atual ? (
+                  <p className="text-xs font-medium text-slate-500">
+                    O fechamento de {monthLabel(m.mes)} fica disponível a partir de{" "}
+                    {formatDate(shiftMonth(m.mes, 1))}.
+                  </p>
+                ) : (
+                  <form action={fecharMes.bind(null, m.mes)}>
+                    <button className="rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-950">
+                      Fechar {monthLabel(m.mes)}
+                    </button>
+                  </form>
+                )}
               </div>
             );
           })}

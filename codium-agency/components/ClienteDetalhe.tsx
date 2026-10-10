@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
-import { formatBRL, formatDate, monthLabel } from "@/lib/format";
+import { diasDeAtraso, formatBRL, formatDate, monthLabel } from "@/lib/format";
 import {
   atualizarCliente,
   atualizarRelacionamento,
@@ -12,7 +12,8 @@ import {
   registrarEventoSaude,
   resolverEventoSaude,
 } from "@/actions/clientes";
-import { marcarPagamentoRecebido, desfazerPagamento } from "@/actions/pagamentos";
+import { desfazerPagamento } from "@/actions/pagamentos";
+import MarcarRecebido from "@/components/MarcarRecebido";
 import { criarContrato, encerrarContrato } from "@/actions/contratos";
 import { DivisaoPreview } from "@/components/ClienteForm";
 
@@ -280,6 +281,11 @@ function AbaFinanceiro({ cliente, pagamentos, startTransition }: any) {
                   <td className="py-2 pr-3 font-medium">{formatBRL(p.valor)}</td>
                   <td className="py-2 pr-3">
                     <StatusBadge status={p.status_efetivo} />
+                    {p.status_efetivo === "pago" && diasDeAtraso(p.vencimento, p.data_pagamento) > 0 && (
+                      <span className="ml-1 text-[11px] font-medium text-warn">
+                        com atraso ({diasDeAtraso(p.vencimento, p.data_pagamento)} dias)
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 pr-3">{p.data_pagamento ? formatDate(p.data_pagamento) : "—"}</td>
                   <td className="py-2 pr-3 text-slate-600">
@@ -300,12 +306,7 @@ function AbaFinanceiro({ cliente, pagamentos, startTransition }: any) {
                         Desfazer
                       </button>
                     ) : (
-                      <button
-                        className="rounded-md bg-ok/10 px-2 py-1 text-xs font-medium text-ok hover:bg-ok/20"
-                        onClick={() => startTransition(() => marcarPagamentoRecebido(p.id, cliente.id))}
-                      >
-                        Marcar recebido
-                      </button>
+                      <MarcarRecebido pagamentoId={p.id} clienteId={cliente.id} />
                     )}
                   </td>
                 </tr>
