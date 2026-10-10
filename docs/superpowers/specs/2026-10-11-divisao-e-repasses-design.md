@@ -49,3 +49,11 @@ Parte 1 de 3 do financeiro. Depois: serviços avulsos; despesas recorrentes.
 
 ## Fora do escopo
 Serviços avulsos, despesas recorrentes, extrato bancário, repasse ao caixa, impostos.
+
+## Ligação com despesas (requisitos da parte 3, já definidos pelo dono)
+Registrados aqui para a parte de despesas recorrentes não perder o fio; **não fazem parte da construção da parte 1**.
+- **Despesa paga sai do caixa.** O caixa disponível desconta somente despesas marcadas como **pagas** (botão "Paga" com data). Ex.: caixa de R$ 1.570, conta fixa de R$ 70 paga → R$ 1.500 disponíveis.
+- **Despesa fixa** aparece todo mês até ser alterada ou excluída; **variável** vale só pelo período definido (um mês, dois, três…), com valor **por mês**. Alterar o valor de uma fixa vale **daqui para frente**.
+- **Vencimento:** o dia (ex.: todo dia 15) gera aviso no dashboard ("Internet vence hoje") enquanto não paga; marcada como paga, o aviso some. A despesa também aparece na tela Financeiro.
+- **Quando a despesa paga é maior que o caixa disponível:** o sistema avisa ("a despesa é R$ 1.600 e há R$ 1.500 no caixa; a diferença de R$ 100 sairá de quem?") e pede **quem cobre a diferença**: um sócio, os dois em partes iguais, ou valores/porcentagens diferentes. Isso fica **gravado** junto da despesa ("coberto: 100% Victor", "R$ 10 Brendo + R$ 90 Victor") e reduz o "a repassar" de cada sócio no mês.
+- Simetria com a parte 1: sócio que recebe **a mais** que a própria parte tira do caixa; caixa que **falta** tira dos sócios.
