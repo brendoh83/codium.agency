@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { garantirPagamentosFuturos } from "@/actions/pagamentos";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import RepassesSecao, { type DivisaoMes, type RepasseLinha } from "@/components/RepassesSecao";
+import CaixaExtrato, { type CaixaMes, type DespesaLinha } from "@/components/CaixaExtrato";
+import RecebimentosMes, { type RecebimentoLinha } from "@/components/RecebimentosMes";
 import { formatBRL, formatDate, monthLabel, firstDayOfMonth, shiftMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +30,10 @@ export default async function DashboardPage({
     { data: alertas },
     { data: financeiroMes },
     { data: divisaoClientes },
+    { data: divisaoMesRow },
+    { data: caixaMesRow },
+    { data: repassesMes },
+    { data: despesasMes },
   ] = await Promise.all([
     supabase.from("v_metricas_gerais").select("*").single(),
     supabase
@@ -38,6 +45,10 @@ export default async function DashboardPage({
     supabase.from("v_alertas").select("*").order("nivel"),
     supabase.from("v_financeiro_mes").select("*").eq("mes", mes).maybeSingle(),
     supabase.from("v_divisao_clientes").select("*").order("empresa"),
+    supabase.from("v_divisao_mes").select("*").eq("mes", mes).maybeSingle(),
+    supabase.from("v_caixa_mes").select("*").eq("mes", mes).maybeSingle(),
+    supabase.from("repasses").select("*").eq("mes_referencia", mes).order("data", { ascending: false }),
+    supabase.from("despesas").select("id, descricao, categoria, tipo, valor").eq("mes_referencia", mes).order("valor", { ascending: false }),
   ]);
 
   let lista = (pagamentosMes ?? []) as any[];
@@ -57,13 +68,62 @@ export default async function DashboardPage({
   const alertasAtencao = (alertas ?? []).filter((a: any) => a.nivel === "atencao").length;
 
   const fm = financeiroMes as any;
-  const totalBrendo = fm?.total_brendo ?? 0;
-  const totalVictor = fm?.total_victor ?? 0;
-  const totalCaixaMes = fm?.total_caixa ?? 0;
+  const num = (v: unknown) => Number(v ?? 0);
+  const dv = (divisaoMesRow ?? {}) as any;
+  const divisao: DivisaoMes = {
+    faturamento: num(dv.faturamento),
+    devido_brendo: num(dv.devido_brendo),
+    devido_victor: num(dv.devido_victor),
+    devido_caixa: num(dv.devido_caixa),
+    entrou_brendo: num(dv.entrou_brendo),
+    entrou_victor: num(dv.entrou_victor),
+    repassado_brendo: num(dv.repassado_brendo),
+    repassado_victor: num(dv.repassado_victor),
+    excesso_brendo: num(dv.excesso_brendo),
+    excesso_victor: num(dv.excesso_victor),
+    caixa_apos_retiradas: num(dv.caixa_apos_retiradas),
+    diferenca_movimentacao: num(dv.diferenca_movimentacao),
+  };
+  const entrouCaixa = num(dv.entrou_caixa);
+  const cx = (caixaMesRow ?? {}) as any;
+  const caixa: CaixaMes = {
+    saldo_inicial: num(cx.saldo_inicial),
+    entradas: num(cx.entradas),
+    saidas_despesas: num(cx.saidas_despesas),
+    saidas_retiradas: num(cx.saidas_retiradas),
+    saldo_final: num(cx.saldo_final),
+  };
+  const repassesLista: RepasseLinha[] = ((repassesMes ?? []) as any[]).map((r) => ({
+    id: r.id,
+    socio: r.socio,
+    valor: num(r.valor),
+    data: r.data,
+    observacao: r.observacao,
+  }));
+  const despesasLista: DespesaLinha[] = ((despesasMes ?? []) as any[]).map((d) => ({
+    id: d.id,
+    descricao: d.descricao,
+    categoria: d.categoria,
+    tipo: d.tipo,
+    valor: num(d.valor),
+  }));
+  const recebimentos: RecebimentoLinha[] = lista
+    .filter((p) => p.status_efetivo === "pago")
+    .map((p) => ({
+      id: p.id,
+      empresa: p.clientes?.empresa ?? "",
+      valor: num(p.valor),
+      data_pagamento: p.data_pagamento,
+      pct_brendo: num(p.pct_brendo_aplicado ?? 50),
+      pct_victor: num(p.pct_victor_aplicado ?? 50),
+    }));
+  const totalBrendo = divisao.devido_brendo;
+  const totalVictor = divisao.devido_victor;
+  const totalCaixaMes = divisao.devido_caixa;
   const despesasFixas = fm?.despesas_fixas ?? 0;
   const despesasVariaveis = fm?.despesas_variaveis ?? 0;
   const despesasTotais = fm?.despesas_totais ?? 0;
-  const saldoCaixa = fm?.saldo_caixa ?? 0;
+  const saldoCaixa = caixa.saldo_final;
   const distribuicao = (divisaoClientes ?? []) as any[];
 
   const dotStyle: Record<string, string> = {
@@ -103,14 +163,27 @@ export default async function DashboardPage({
           Resumo financeiro — {monthLabel(mes)}
         </h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total do Brendo" value={formatBRL(totalBrendo)} />
-          <StatCard label="Total do Victor" value={formatBRL(totalVictor)} />
-          <StatCard label="Total destinado ao caixa" value={formatBRL(totalCaixaMes)} tone="ok" />
+          <StatCard
+            label="Total do Brendo"
+            value={formatBRL(totalBrendo)}
+            sub={`Entrou ${formatBRL(divisao.entrou_brendo)} · Falta ${formatBRL(totalBrendo - divisao.entrou_brendo)}`}
+          />
+          <StatCard
+            label="Total do Victor"
+            value={formatBRL(totalVictor)}
+            sub={`Entrou ${formatBRL(divisao.entrou_victor)} · Falta ${formatBRL(totalVictor - divisao.entrou_victor)}`}
+          />
+          <StatCard
+            label="Total destinado ao caixa"
+            value={formatBRL(totalCaixaMes)}
+            tone="ok"
+            sub={`Entrou ${formatBRL(entrouCaixa)} · Falta ${formatBRL(totalCaixaMes - entrouCaixa)}`}
+          />
           <StatCard
             label="Saldo disponível no caixa"
             value={formatBRL(saldoCaixa)}
             tone={saldoCaixa >= 0 ? "ok" : "danger"}
-            sub="Caixa do mês menos despesas"
+            sub="Acumulado: saldo anterior + entrou − despesas − retiradas"
           />
           <StatCard label="Despesas fixas" value={formatBRL(despesasFixas)} tone="warn" />
           <StatCard label="Despesas variáveis" value={formatBRL(despesasVariaveis)} tone="warn" />
@@ -122,6 +195,20 @@ export default async function DashboardPage({
           />
         </div>
       </div>
+
+      <RepassesSecao mesISO={mes} mesLabel={monthLabel(mes)} divisao={divisao} repasses={repassesLista} />
+
+      <CaixaExtrato mesLabel={monthLabel(mes)} caixa={caixa} despesas={despesasLista} />
+
+      <RecebimentosMes
+        mesLabel={monthLabel(mes)}
+        linhas={recebimentos}
+        totais={{
+          brendo: divisao.entrou_brendo,
+          victor: divisao.entrou_victor,
+          caixa: entrouCaixa,
+        }}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-card">
         <div className="flex items-center justify-between border-b border-slate-100 p-4">

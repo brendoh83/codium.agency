@@ -34,6 +34,16 @@ export default function HistoricoLista({ fechamentos }: { fechamentos: any[] }) 
             <Item label="Despesas fixas" value={formatBRL(f.despesas_fixas)} tone="warn" />
             <Item label="Despesas variáveis" value={formatBRL(f.despesas_variaveis)} tone="warn" />
             <Item label="Despesas totais" value={formatBRL(f.despesas_totais)} tone="danger" />
+            {f.devido_brendo != null && (
+              <>
+                <Item label="Devido Brendo" value={formatBRL(f.devido_brendo)} />
+                <Item label="Devido Victor" value={formatBRL(f.devido_victor)} />
+                <Item label="Devido Caixa" value={formatBRL(f.devido_caixa)} />
+                <Item label="Repassado Brendo" value={formatBRL(f.repassado_brendo)} tone="ok" />
+                <Item label="Repassado Victor" value={formatBRL(f.repassado_victor)} tone="ok" />
+                <Item label="Saldo do caixa (acumulado)" value={formatBRL(f.caixa_saldo_final)} />
+              </>
+            )}
           </div>
           <div className="mt-3 border-t border-slate-100 pt-3">
             <Item
