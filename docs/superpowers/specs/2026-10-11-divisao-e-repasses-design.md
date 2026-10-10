@@ -23,7 +23,9 @@ Parte 1 de 3 do financeiro. Depois: serviços avulsos; despesas recorrentes.
 - `falta_* = devido_* − entrou_*`.
 - `repassado_brendo` / `repassado_victor` = soma de `repasses.valor` com `mes_referencia = M`.
 - `a_repassar_* = devido_* − repassado_*` (o que ainda falta chegar à conta do sócio) e `disponivel_* = entrou_* − repassado_*` (o que já entrou e ainda não foi repassado).
-- O **saldo do caixa** continua `entrou_caixa − despesas do mês`.
+- **Excedente de um sócio**: `excesso_x = max(0, repassado_x − devido_x)`. Receber a mais que a própria parte é **aceito** (provavelmente foi usado em algo da empresa) e é **descontado do caixa**: `caixa_apos_retiradas = devido_caixa − excesso_brendo − excesso_victor`.
+- **Diferença de movimentação**: se `caixa_apos_retiradas < 0`, os repasses somam mais que o faturamento do mês: `diferenca = repassado_brendo + repassado_victor − faturamento`. Isso indica um serviço ou entrada que ficou de fora do cadastro e gera aviso (ver Interface).
+- O **saldo do caixa** passa a ser `entrou_caixa − despesas do mês − excessos dos sócios`.
 
 ## Dados (Supabase)
 - Nova view `v_divisao_mes(mes, faturamento, devido_brendo, devido_victor, devido_caixa, entrou_brendo, entrou_victor, entrou_caixa, falta_brendo, falta_victor, falta_caixa, repassado_brendo, repassado_victor)`.
@@ -33,13 +35,14 @@ Parte 1 de 3 do financeiro. Depois: serviços avulsos; despesas recorrentes.
 
 ## Interface
 - **Dashboard → "Resumo financeiro — {mês}"**: os cartões do Brendo, do Victor e do Caixa passam a mostrar o **devido sobre o total do mês**, com a linha de apoio "Entrou R$ X · Falta R$ Y". O seletor de mês existente vale para esses números.
-- **Nova seção "Repasses aos sócios — {mês}"** (abaixo do resumo): por sócio, `Devido`, `Repassado`, `A repassar`, com botão **Registrar repasse** (valor, data, observação, mês de referência) e a lista de repasses do mês com opção de excluir.
+- **Nova seção "Repasses aos sócios — {mês}"** (abaixo do resumo): por sócio, `Devido`, `Repassado`, `A repassar`, com botão **Registrar repasse** (valor, data, observação, mês de referência) e a lista de repasses do mês com opção de excluir. Mostra também o **Caixa do mês após retiradas** (devido do caixa menos os excedentes) e os avisos descritos em "Casos de borda".
 - **Nova seção "Recebimentos do mês — divisão por pagamento"**: uma linha por pagamento pago do mês (cliente, valor, pago em, Brendo, Victor, Caixa), com total no rodapé.
 - **Histórico**: cada mês fechado mostra também devido e repassado (quando houver).
 
 ## Casos de borda
 - Mês sem pagamentos: tudo zero, sem erro.
-- Repasse maior que o devido: aceito, mostrando "A repassar" negativo (adiantamento), com aviso discreto.
+- Repasse maior que o devido de um sócio: **aceito**. A tela mostra uma nota informativa (não é erro): "Brendo recebeu R$ 500 além da parte dele; esse valor saiu do caixa de {mês}". O "A repassar" do sócio fica em R$ 0 e o excedente aparece como retirada do caixa.
+- Repasses somando mais que o faturamento do mês: **aviso de atenção** (cor de alerta) no resumo e na seção de repasses: "Movimentação maior que o faturamento: os repasses somam R$ 21.000, mas {mês} faturou R$ 20.000 (diferença de R$ 1.000). Algum serviço ou pagamento ficou de fora do cadastro?". Mesmo assim o repasse é gravado; o aviso some quando a diferença for resolvida (cadastrando o que faltava).
 - Mudar `pct_*` de um cliente depois de pagar não altera pagamentos já pagos (usa o aplicado).
 - Fechar o mês grava o retrato da divisão; reabrir e fechar de novo recalcula.
 - Pagamento de um mês fechado, lançado depois: o retrato fica desatualizado até fechar de novo (já é o comportamento do fechamento).
