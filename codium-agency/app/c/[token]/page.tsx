@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/publico";
 import { urlLeitura } from "@/lib/r2";
-import { estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
+import { comVersoes, estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import FeedCliente, { type ItemFeed } from "@/components/FeedCliente";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,9 @@ export default async function FeedPage({ params }: { params: { token: string } }
   const { data } = await createPublicClient().rpc("feed_cliente", { p_token: params.token });
   if (!data) notFound();
 
-  const conteudos = (data.conteudos ?? []) as (Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] })[];
+  const conteudos = comVersoes(
+    (data.conteudos ?? []) as (Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] })[]
+  );
   const { topo, aprovados } = separarFeed(conteudos as unknown as Conteudo[]);
   const porId = new Map(conteudos.map((c) => [c.id, c]));
 

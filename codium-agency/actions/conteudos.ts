@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { tipoPorMime, validarArquivo } from "@/lib/conteudos";
+import { podeNovaVersao, tipoPorMime, validarArquivo } from "@/lib/conteudos";
 
 type Resultado = { erro?: string };
 
@@ -73,14 +73,15 @@ export async function registrarNovaVersao(i: {
 
   const { data: ultima } = await supabase
     .from("conteudo_versoes")
-    .select("numero, decisao")
+    .select("numero, decisao, expira_em")
     .eq("conteudo_id", i.conteudoId)
     .order("numero", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!ultima) return { erro: "Conteúdo sem versão anterior." };
-  if (ultima.decisao !== "reprovado") {
-    return { erro: "Só é possível subir nova versão de um conteúdo reprovado." };
+  const expirada = new Date(ultima.expira_em) < new Date();
+  if (!podeNovaVersao({ decisao: ultima.decisao, expirada })) {
+    return { erro: "Só é possível subir nova versão de um conteúdo reprovado ou com arquivo expirado." };
   }
 
   const { error } = await supabase.from("conteudo_versoes").insert({

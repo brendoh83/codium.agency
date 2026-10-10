@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { urlLeitura } from "@/lib/r2";
-import { estadoConteudo, versaoAtual, type Versao } from "@/lib/conteudos";
+import { estadoConteudo, podeNovaVersao, versaoAtual, type Versao } from "@/lib/conteudos";
 import ConteudoUpload from "@/components/ConteudoUpload";
 import LinkCliente from "@/components/LinkCliente";
 
@@ -93,7 +93,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
               </ul>
             )}
 
-            {c.estado === "reprovado" && <ConteudoUpload clienteId={cliente.id} conteudoId={c.id} />}
+            {c.atual && podeNovaVersao(c.atual) && <ConteudoUpload clienteId={cliente.id} conteudoId={c.id} />}
           </div>
         ))}
       </div>

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  chaveR2, estadoConteudo, mensagemErro, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
+  chaveR2, comVersoes, estadoConteudo, mensagemErro, podeNovaVersao, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
   MAX_BYTES, type Conteudo, type Versao,
 } from "./conteudos.ts";
 
@@ -65,4 +65,19 @@ test("mensagemErro traduz erros do banco e tem fallback", () => {
   assert.match(mensagemErro("arquivo expirado"), /expirou/i);
   assert.match(mensagemErro("versao antiga"), /mais nova/i);
   assert.match(mensagemErro("qualquer coisa"), /tente/i);
+});
+
+test("podeNovaVersao: reprovado, ou pendente com arquivo expirado", () => {
+  assert.equal(podeNovaVersao({ decisao: "reprovado", expirada: false }), true);
+  assert.equal(podeNovaVersao({ decisao: "reprovado", expirada: true }), true);
+  assert.equal(podeNovaVersao({ decisao: null, expirada: true }), true);
+  assert.equal(podeNovaVersao({ decisao: null, expirada: false }), false);
+  assert.equal(podeNovaVersao({ decisao: "aprovado", expirada: false }), false);
+  assert.equal(podeNovaVersao({ decisao: "aprovado", expirada: true }), false);
+});
+
+test("comVersoes descarta conteúdo sem versões", () => {
+  const ok = c("ok", [v(1, null)]);
+  const vazio = c("vazio", []);
+  assert.deepEqual(comVersoes([vazio, ok]).map((x) => x.id), ["ok"]);
 });

@@ -44,6 +44,14 @@ export function estadoConteudo(c: { versoes: Versao[] }): Estado {
   return d === "aprovado" ? "aprovado" : d === "reprovado" ? "reprovado" : "pendente";
 }
 
+export function podeNovaVersao(v: { decisao: Decisao; expirada: boolean }): boolean {
+  return v.decisao === "reprovado" || (v.decisao === null && v.expirada);
+}
+
+export function comVersoes<T extends { versoes: unknown[] }>(cs: T[]): T[] {
+  return cs.filter((c) => c.versoes.length > 0);
+}
+
 export function separarFeed<T extends Conteudo>(cs: T[]): { topo: T[]; aprovados: T[] } {
   const porDataDesc = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
   const topo = cs
