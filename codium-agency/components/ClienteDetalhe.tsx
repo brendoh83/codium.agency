@@ -15,6 +15,7 @@ import {
 import { desfazerPagamento } from "@/actions/pagamentos";
 import MarcarRecebido from "@/components/MarcarRecebido";
 import { criarContrato, encerrarContrato } from "@/actions/contratos";
+import { rotuloDuracao } from "@/lib/contratos";
 import { DivisaoPreview } from "@/components/ClienteForm";
 
 const ABAS = ["Geral", "Financeiro", "Contratos", "Relacionamento & Saúde", "Tarefas"] as const;
@@ -328,13 +329,6 @@ function AbaFinanceiro({ cliente, pagamentos, startTransition }: any) {
 
 function AbaContratos({ cliente, contratos }: any) {
   const criar = criarContrato.bind(null, cliente.id);
-  const DURACAO_LABEL: Record<string, string> = {
-    "1_mes": "1 mês",
-    "3_meses": "3 meses",
-    "6_meses": "6 meses",
-    "12_meses": "12 meses",
-    recorrente: "Recorrente",
-  };
 
   function statusVencimento(dataFim: string | null) {
     if (!dataFim) return { label: "Ativo", tone: "ativo" };
@@ -355,18 +349,11 @@ function AbaContratos({ cliente, contratos }: any) {
           <Field label="Tipo" name="tipo" defaultValue={cliente.plano} />
           <Field label="Data de início" name="data_inicio" type="date" />
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Duração</label>
-            <select name="duracao" className="input" defaultValue="recorrente">
-              <option value="recorrente">Recorrente</option>
-              <option value="1_mes">1 mês</option>
-              <option value="3_meses">3 meses</option>
-              <option value="6_meses">6 meses</option>
-              <option value="12_meses">12 meses</option>
-            </select>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Duração (meses)</label>
+            <input name="meses" type="number" min={1} max={120} className="input" placeholder="Vazio = recorrente" />
           </div>
           <Field label="Valor" name="valor" defaultValue={cliente.valor_mensal} />
-          <Field label="Data de término (se houver)" name="data_fim" type="date" />
-          <div className="flex items-end md:col-span-3">
+          <div className="flex items-end md:col-span-2">
             <SubmitButton>Adicionar contrato</SubmitButton>
           </div>
         </form>
@@ -384,7 +371,7 @@ function AbaContratos({ cliente, contratos }: any) {
                 <div>
                   <div className="text-sm font-medium text-navy-900">{c.tipo || "Contrato"}</div>
                   <div className="text-xs text-slate-400">
-                    {DURACAO_LABEL[c.duracao]} · Início {formatDate(c.data_inicio)}
+                    {rotuloDuracao(c.meses ?? null)} · Início {formatDate(c.data_inicio)}
                     {c.data_fim ? ` · Término ${formatDate(c.data_fim)}` : ""} · {formatBRL(c.valor)}
                   </div>
                 </div>

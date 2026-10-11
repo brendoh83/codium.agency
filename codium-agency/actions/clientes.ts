@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { dataFimDoContrato, duracaoTexto, mesesDoForm } from "@/lib/contratos";
 
 function num(v: FormDataEntryValue | null): number {
   if (!v) return 0;
@@ -77,14 +78,15 @@ export async function criarCliente(formData: FormData) {
   }
 
   // Contrato inicial
-  const duracao = str(formData.get("duracao")) ?? "recorrente";
-  const dataFim = str(formData.get("data_fim"));
+  const mesesContrato = mesesDoForm(formData.get("meses"));
+  const inicioContrato = str(formData.get("data_inicio")) ?? new Date().toISOString().slice(0, 10);
   await supabase.from("contratos").insert({
     cliente_id: cliente.id,
     tipo: str(formData.get("plano")) ?? "Contrato de prestação de serviços",
-    data_inicio: str(formData.get("data_inicio")) ?? new Date().toISOString().slice(0, 10),
-    data_fim: duracao === "recorrente" ? null : dataFim,
-    duracao: duracao as any,
+    data_inicio: inicioContrato,
+    data_fim: mesesContrato ? dataFimDoContrato(inicioContrato, mesesContrato) : null,
+    duracao: duracaoTexto(mesesContrato),
+    meses: mesesContrato,
     valor: valorMensal,
     status: "ativo",
   });

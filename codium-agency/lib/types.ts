@@ -62,6 +62,7 @@ export interface Contrato {
   data_inicio: string;
   data_fim: string | null;
   duracao: DuracaoContrato;
+  meses: number | null;
   valor: number;
   status: StatusContrato;
 }

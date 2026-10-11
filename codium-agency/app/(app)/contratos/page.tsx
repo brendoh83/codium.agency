@@ -2,16 +2,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import StatusBadge from "@/components/StatusBadge";
 import { formatBRL, formatDate } from "@/lib/format";
+import { rotuloDuracao } from "@/lib/contratos";
 
 export const dynamic = "force-dynamic";
 
-const DURACAO_LABEL: Record<string, string> = {
-  "1_mes": "1 mês",
-  "3_meses": "3 meses",
-  "6_meses": "6 meses",
-  "12_meses": "12 meses",
-  recorrente: "Recorrente",
-};
 
 function statusVencimento(dataFim: string | null, status: string) {
   if (status !== "ativo") return { label: "Encerrado", tone: "encerrado" };
@@ -61,7 +55,7 @@ export default async function ContratosPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{c.tipo || "—"}</td>
-                  <td className="px-4 py-3 text-slate-600">{DURACAO_LABEL[c.duracao]}</td>
+                  <td className="px-4 py-3 text-slate-600">{rotuloDuracao(c.meses ?? null)}</td>
                   <td className="px-4 py-3 font-medium">{formatBRL(c.valor)}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDate(c.data_inicio)}</td>
                   <td className="px-4 py-3">

@@ -14,7 +14,7 @@ export default function ClienteForm({
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [valorMensal, setValorMensal] = useState<string>("");
   const [composicao, setComposicao] = useState<Record<string, string>>({});
-  const [duracao, setDuracao] = useState("recorrente");
+  const [meses, setMeses] = useState("");
   const [pctBrendo, setPctBrendo] = useState("50");
 
   const pctBrendoNum = Math.min(100, Math.max(0, Number(pctBrendo.replace(",", ".")) || 0));
@@ -141,23 +141,21 @@ export default function ClienteForm({
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Duração do contrato</label>
-            <select
-              name="duracao"
-              value={duracao}
-              onChange={(e) => setDuracao(e.target.value)}
+            <label className="mb-1 block text-xs font-medium text-slate-600">Duração do contrato (meses)</label>
+            <input
+              name="meses"
+              type="number"
+              min={1}
+              max={120}
+              value={meses}
+              onChange={(e) => setMeses(e.target.value)}
               className="input"
-            >
-              <option value="recorrente">Recorrente / sem prazo definido</option>
-              <option value="1_mes">1 mês</option>
-              <option value="3_meses">3 meses</option>
-              <option value="6_meses">6 meses</option>
-              <option value="12_meses">12 meses</option>
-            </select>
+              placeholder="Vazio = recorrente (sem prazo)"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Qualquer número: 1, 3, 7, 10, 24… Geramos exatamente essa quantidade de pagamentos, mês a mês.
+            </p>
           </div>
-          {duracao !== "recorrente" && (
-            <Field label="Data de término" name="data_fim" type="date" />
-          )}
         </div>
       </section>
 

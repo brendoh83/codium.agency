@@ -2,32 +2,38 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { competenciasDoContrato } from "@/lib/contratos";
 
-/** Garante que cada cliente ativo tenha pagamento gerado para os próximos `meses` meses. */
+/** Gera os pagamentos que faltam: cada contrato ativo gera exatamente a quantidade de meses do contrato
+ *  (recorrente = até o horizonte de `meses` meses à frente). */
 export async function garantirPagamentosFuturos(meses = 3) {
   const supabase = createClient();
   const { data: clientes } = await supabase
     .from("clientes")
-    .select("id, valor_mensal, dia_pagamento, data_inicio")
+    .select("id, valor_mensal, dia_pagamento, contratos(data_inicio, meses, status)")
     .eq("status", "ativo");
 
   if (!clientes?.length) return;
 
-  const linhas: any[] = [];
   const hoje = new Date();
+  const desde = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
+  const ate = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth() + meses - 1, 1)).toISOString().slice(0, 10);
 
-  for (const cliente of clientes) {
+  const linhas: any[] = [];
+  for (const cliente of clientes as any[]) {
     const dia = Math.min(Math.max(cliente.dia_pagamento ?? 10, 1), 28);
-    for (let i = 0; i < meses; i++) {
-      const ref = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-      const competencia = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}-01`;
-      const vencimento = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}-${String(
-        dia
-      ).padStart(2, "0")}`;
+    const competencias = new Set<string>();
+    for (const ct of cliente.contratos ?? []) {
+      if (ct.status !== "ativo") continue;
+      for (const c of competenciasDoContrato({ inicio: ct.data_inicio, meses: ct.meses, desde, ate })) {
+        competencias.add(c);
+      }
+    }
+    for (const competencia of Array.from(competencias)) {
       linhas.push({
         cliente_id: cliente.id,
         competencia,
-        vencimento,
+        vencimento: `${competencia.slice(0, 8)}${String(dia).padStart(2, "0")}`,
         valor: cliente.valor_mensal,
         status: "pendente",
       });

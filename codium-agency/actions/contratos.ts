@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { dataFimDoContrato, duracaoTexto, mesesDoForm } from "@/lib/contratos";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v ?? "").toString().trim();
@@ -14,13 +15,15 @@ function num(v: FormDataEntryValue | null): number {
 
 export async function criarContrato(clienteId: string, formData: FormData) {
   const supabase = createClient();
-  const duracao = str(formData.get("duracao")) ?? "recorrente";
+  const meses = mesesDoForm(formData.get("meses"));
+  const inicio = str(formData.get("data_inicio")) ?? new Date().toISOString().slice(0, 10);
   await supabase.from("contratos").insert({
     cliente_id: clienteId,
     tipo: str(formData.get("tipo")),
-    data_inicio: str(formData.get("data_inicio")) ?? new Date().toISOString().slice(0, 10),
-    data_fim: duracao === "recorrente" ? null : str(formData.get("data_fim")),
-    duracao,
+    data_inicio: inicio,
+    data_fim: meses ? dataFimDoContrato(inicio, meses) : null,
+    duracao: duracaoTexto(meses),
+    meses,
     valor: num(formData.get("valor")),
     status: "ativo",
   });
