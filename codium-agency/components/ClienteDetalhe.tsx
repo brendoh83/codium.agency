@@ -14,7 +14,7 @@ import {
 } from "@/actions/clientes";
 import { desfazerPagamento } from "@/actions/pagamentos";
 import MarcarRecebido from "@/components/MarcarRecebido";
-import { criarContrato, encerrarContrato } from "@/actions/contratos";
+import { criarContrato, encerrarContrato, renovarContrato } from "@/actions/contratos";
 import { rotuloDuracao } from "@/lib/contratos";
 import { DivisaoPreview } from "@/components/ClienteForm";
 
@@ -383,6 +383,31 @@ function AbaContratos({ cliente, contratos }: any) {
                     </form>
                   )}
                 </div>
+                {c.status === "ativo" && (
+                  <details className="w-full">
+                    <summary className="cursor-pointer text-xs font-medium text-navy-900">Renovar contrato</summary>
+                    <form
+                      action={renovarContrato.bind(null, c.id, cliente.id)}
+                      className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4"
+                    >
+                      <label className="text-xs text-slate-500">
+                        Novo início
+                        <input name="data_inicio" type="date" defaultValue={c.data_fim ?? ""} className="input mt-1 w-full" />
+                      </label>
+                      <label className="text-xs text-slate-500">
+                        Duração (meses)
+                        <input name="meses" type="number" min={1} max={120} className="input mt-1 w-full" placeholder="Vazio = recorrente" />
+                      </label>
+                      <label className="text-xs text-slate-500">
+                        Valor
+                        <input name="valor" defaultValue={c.valor} className="input mt-1 w-full" />
+                      </label>
+                      <div className="flex items-end">
+                        <SubmitButton>Renovar</SubmitButton>
+                      </div>
+                    </form>
+                  </details>
+                )}
               </div>
             );
           })}
