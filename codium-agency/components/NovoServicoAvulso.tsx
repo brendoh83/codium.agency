@@ -20,6 +20,7 @@ export default function NovoServicoAvulso({ clientes }: { clientes: Cliente[] })
   const [descricao, setDescricao] = useState("");
   const [forma, setForma] = useState<"avista" | "parcelado">("avista");
   const [valorTexto, setValorTexto] = useState("");
+  const [duracaoTexto, setDuracaoTexto] = useState("");
   const [qtd, setQtd] = useState(2);
   const [primeira, setPrimeira] = useState(hoje);
   const [edicoes, setEdicoes] = useState<Record<number, { valor?: string; vencimento?: string }>>({});
@@ -59,6 +60,7 @@ export default function NovoServicoAvulso({ clientes }: { clientes: Cliente[] })
         clienteId: donoTipo === "cliente" ? clienteId : null,
         empresaExterna: donoTipo === "externa" ? empresa : "",
         descricao,
+        duracaoMeses: Number.isInteger(Number(duracaoTexto)) && Number(duracaoTexto) > 0 ? Number(duracaoTexto) : null,
         forma,
         valorTotal: total,
         parcelas: parcelas.map((p) => ({ valor: p.valor, vencimento: p.vencimento })),
@@ -66,6 +68,7 @@ export default function NovoServicoAvulso({ clientes }: { clientes: Cliente[] })
       if (r.erro) return setErro(r.erro);
       setDescricao("");
       setValorTexto("");
+      setDuracaoTexto("");
       setEdicoes({});
       setOk(true);
     });
@@ -118,6 +121,16 @@ export default function NovoServicoAvulso({ clientes }: { clientes: Cliente[] })
           maxLength={200}
           className="input w-full"
         />
+        <label className="text-xs text-slate-500 md:col-span-2">
+          Duração do serviço em meses (opcional — ex.: evento de 3 meses)
+          <input
+            value={duracaoTexto}
+            onChange={(e) => setDuracaoTexto(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            placeholder="Vazio = serviço pontual"
+            className="input mt-1 w-full md:w-60"
+          />
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">

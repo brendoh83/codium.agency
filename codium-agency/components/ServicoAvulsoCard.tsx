@@ -18,6 +18,7 @@ export interface ServicoLinha {
   id: string;
   dono: string;
   descricao: string;
+  duracao_meses: number | null;
   forma: "avista" | "parcelado";
   valor_total: number;
   parcelas: ParcelaLinha[];
@@ -92,7 +93,7 @@ export default function ServicoAvulsoCard({ s }: { s: ServicoLinha }) {
         <div>
           <div className="font-medium text-navy-900">{s.descricao}</div>
           <div className="text-xs text-slate-500">
-            {s.dono} · {s.forma === "avista" ? "à vista" : `parcelado em ${s.parcelas.length}x`} · total{" "}
+            {s.dono} · {s.duracao_meses ? `serviço de ${s.duracao_meses} ${s.duracao_meses === 1 ? "mês" : "meses"} · ` : ""}{s.forma === "avista" ? "à vista" : `parcelado em ${s.parcelas.length}x`} · total{" "}
             {formatBRL(s.valor_total)} · recebido {formatBRL(recebido)}
           </div>
         </div>

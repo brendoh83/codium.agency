@@ -17,6 +17,8 @@ export async function criarContrato(clienteId: string, formData: FormData) {
   const supabase = createClient();
   const meses = mesesDoForm(formData.get("meses"));
   const inicio = str(formData.get("data_inicio")) ?? new Date().toISOString().slice(0, 10);
+  // renovação: o contrato novo substitui o anterior; vale a contagem dali para frente
+  await supabase.from("contratos").update({ status: "encerrado" }).eq("cliente_id", clienteId).eq("status", "ativo");
   await supabase.from("contratos").insert({
     cliente_id: clienteId,
     tipo: str(formData.get("tipo")),

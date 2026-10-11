@@ -11,7 +11,7 @@ export default async function AvulsosPage() {
     supabase
       .from("servicos_avulsos")
       .select(
-        "id, descricao, forma, valor_total, empresa_externa, created_at, clientes(empresa), servico_parcelas(id, numero, valor, vencimento, competencia, status, data_pagamento)"
+        "id, descricao, duracao_meses, forma, valor_total, empresa_externa, created_at, clientes(empresa), servico_parcelas(id, numero, valor, vencimento, competencia, status, data_pagamento)"
       )
       .order("created_at", { ascending: false }),
   ]);
@@ -20,6 +20,7 @@ export default async function AvulsosPage() {
     id: s.id,
     dono: s.clientes?.empresa ?? s.empresa_externa ?? "—",
     descricao: s.descricao,
+    duracao_meses: s.duracao_meses ?? null,
     forma: s.forma,
     valor_total: Number(s.valor_total),
     parcelas: ((s.servico_parcelas ?? []) as any[])

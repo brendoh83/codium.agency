@@ -17,6 +17,7 @@ export async function criarServicoAvulso(i: {
   clienteId: string | null;
   empresaExterna: string;
   descricao: string;
+  duracaoMeses?: number | null;
   forma: "avista" | "parcelado";
   valorTotal: number;
   parcelas: { valor: number; vencimento: string }[];
@@ -38,6 +39,7 @@ export async function criarServicoAvulso(i: {
       cliente_id: i.clienteId || null,
       empresa_externa: i.clienteId ? null : empresa,
       descricao,
+      duracao_meses: i.duracaoMeses && i.duracaoMeses >= 1 && i.duracaoMeses <= 120 ? Math.floor(i.duracaoMeses) : null,
       forma: i.forma,
       valor_total: i.valorTotal,
     })
