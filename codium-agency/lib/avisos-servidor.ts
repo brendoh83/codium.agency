@@ -68,8 +68,7 @@ export async function avisarClienteConteudo(i: {
   try {
     const { supabase, clienteId } = i;
     const { data: cliente } = await supabase
-      .from("clientes")
-      .select("empresa, link_token, whatsapp_grupo_id")
+      .rpc("clientes_conteudo")
       .eq("id", clienteId)
       .maybeSingle();
     if (!cliente?.whatsapp_grupo_id) return { enviado: false, motivo: "sem_grupo" };

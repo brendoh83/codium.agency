@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function ConteudosPage() {
   const supabase = createClient();
   const [{ data: clientes }, { data: conteudos }] = await Promise.all([
-    supabase.from("clientes").select("id, empresa, status").order("empresa"),
+    supabase.rpc("clientes_conteudo").order("empresa"),
     supabase.from("conteudos").select("id, cliente_id, conteudo_versoes(numero, decisao)"),
   ]);
 

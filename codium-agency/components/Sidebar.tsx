@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "@/actions/auth";
+import { rotaPermitida } from "@/lib/acesso";
 
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "▦" },
@@ -22,13 +23,13 @@ const ITEMS = [
   { href: "/configuracoes", label: "Configurações", icon: "⚙" },
 ];
 
-export default function Sidebar({ email }: { email: string }) {
+export default function Sidebar({ email, papel }: { email: string; papel: string | null }) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
 
   const nav = (
     <nav className="flex-1 space-y-0.5 px-3">
-      {ITEMS.map((item) => {
+      {ITEMS.filter((item) => rotaPermitida(papel, item.href)).map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link

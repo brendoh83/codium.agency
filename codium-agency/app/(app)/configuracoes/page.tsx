@@ -66,8 +66,8 @@ export default async function ConfiguracoesPage() {
           ))}
         </div>
         <p className="mt-4 text-xs text-slate-400">
-          Por enquanto todo novo usuário entra como administrador. Perfis de equipe com acesso
-          limitado serão liberados numa próxima etapa.
+          Administrador vê tudo. Equipe vê apenas a aba Conteúdos (o restante fica bloqueado
+          também no banco de dados).
         </p>
       </div>
 
@@ -81,6 +81,10 @@ export default async function ConfiguracoesPage() {
         <form action={adicionarEmailPermitido} className="mt-4 flex flex-wrap gap-2">
           <input name="email" type="email" placeholder="email@exemplo.com" required className="input flex-1" />
           <input name="apelido" placeholder="Nome (opcional)" className="input flex-1" />
+          <select name="papel" defaultValue="equipe" className="input">
+            <option value="equipe">Equipe (só Conteúdos)</option>
+            <option value="administrador">Administrador (tudo)</option>
+          </select>
           <button className="rounded-lg bg-navy-900 px-4 py-2 text-xs font-medium text-white hover:bg-navy-950">
             Autorizar e-mail
           </button>

@@ -13,6 +13,11 @@ async function usuario() {
   return { supabase, user };
 }
 
+async function ehAdmin(supabase: ReturnType<typeof createClient>) {
+  const { data } = await supabase.rpc("is_admin");
+  return data === true;
+}
+
 async function instanciaAtual(supabase: ReturnType<typeof createClient>) {
   const { data } = await supabase
     .from("app_config")
@@ -56,6 +61,7 @@ export async function iniciarConexao(
 ): Promise<{ erro?: string; qr?: string; codigo?: string }> {
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
+  if (!(await ehAdmin(supabase))) return { erro: "Sem permissão." };
   try {
     const instancia = await instanciaAtual(supabase);
     try {
@@ -118,6 +124,7 @@ export async function salvarGrupoEquipe(id: string, nome: string): Promise<{ err
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
   if (!id.endsWith("@g.us")) return { erro: "Grupo inválido." };
+  if (!(await ehAdmin(supabase))) return { erro: "Sem permissão." };
   const { error } = await supabase.from("app_config").upsert([
     { chave: "whatsapp_grupo_equipe_id", valor: id },
     { chave: "whatsapp_grupo_equipe_nome", valor: nome },
@@ -135,10 +142,11 @@ export async function salvarGrupoCliente(
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
   if (id && !id.endsWith("@g.us")) return { erro: "Grupo inválido." };
-  const { error } = await supabase
-    .from("clientes")
-    .update({ whatsapp_grupo_id: id, whatsapp_grupo_nome: id ? nome : null })
-    .eq("id", clienteId);
+  const { error } = await supabase.rpc("salvar_grupo_cliente", {
+    p_cliente_id: clienteId,
+    p_id: id,
+    p_nome: nome,
+  });
   if (error) return { erro: "Não foi possível salvar o grupo do cliente." };
   revalidatePath(`/conteudos/${clienteId}`);
   return {};

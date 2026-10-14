@@ -20,6 +20,7 @@ export async function adicionarEmailPermitido(formData: FormData) {
   await supabase.from("emails_permitidos").insert({
     email,
     apelido: str(formData.get("apelido")),
+    papel: formData.get("papel") === "administrador" ? "administrador" : "equipe",
     adicionado_por: user?.id ?? null,
   });
 

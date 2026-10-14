@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./lib/supabase/config";
+import { rotaPermitida } from "./lib/acesso";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
@@ -40,6 +41,15 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  if (user && !isPublicAsset && !isPublicFeed) {
+    const { data: perfil } = await supabase.from("profiles").select("papel").eq("id", user.id).maybeSingle();
+    if (!rotaPermitida(perfil?.papel, path)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/conteudos";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

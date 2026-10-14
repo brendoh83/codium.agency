@@ -18,8 +18,7 @@ type Item = Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] };
 export default async function ConteudosClientePage({ params }: { params: { clienteId: string } }) {
   const supabase = createClient();
   const { data: cliente } = await supabase
-    .from("clientes")
-    .select("id, empresa, link_token, whatsapp_grupo_id, whatsapp_grupo_nome")
+    .rpc("clientes_conteudo")
     .eq("id", params.clienteId)
     .maybeSingle();
   if (!cliente) notFound();

@@ -16,6 +16,9 @@ export default function EmailsPermitidosConfig({ emails }: { emails: any[] }) {
             <div className="font-medium text-navy-900">{e.apelido || e.email}</div>
             {e.apelido && <div className="text-xs text-slate-400">{e.email}</div>}
           </div>
+          <span className="mr-auto ml-3 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+            {e.papel === "equipe" ? "Equipe (só Conteúdos)" : "Administrador"}
+          </span>
           <button
             onClick={() => {
               if (confirm(`Remover o acesso de ${e.email}? A pessoa não vai mais conseguir criar conta com esse e-mail (uma conta já existente não é apagada).`)) {
