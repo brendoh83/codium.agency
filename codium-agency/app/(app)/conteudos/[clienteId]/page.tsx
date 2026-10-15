@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { urlLeitura } from "@/lib/r2";
+import { chavePrevia, urlLeitura } from "@/lib/r2";
 import { estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import ConteudoUpload from "@/components/ConteudoUpload";
 import ConteudosGrade from "@/components/ConteudosGrade";
@@ -12,7 +12,7 @@ import type { ItemFeed } from "@/components/FeedCliente";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type VersaoComChave = Versao & { r2_key: string };
+type VersaoComChave = Versao & { r2_key: string; previa_ok?: boolean };
 type Item = Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] };
 
 export default async function ConteudosClientePage({ params }: { params: { clienteId: string } }) {
@@ -27,7 +27,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
   const { data: conteudos } = await supabase
     .from("conteudos")
     .select(
-      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, decisao, motivo, decidido_em)"
+      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, previa_ok, decisao, motivo, decidido_em)"
     )
     .eq("cliente_id", cliente.id)
     .order("created_at", { ascending: false });
@@ -57,7 +57,9 @@ export default async function ConteudosClientePage({ params }: { params: { clien
       estado: estadoConteudo(original),
       versaoId: atual.id,
       numero: atual.numero,
-      url: !atual.expirada ? await urlLeitura(atual.r2_key) : null,
+      url: !atual.expirada
+        ? await urlLeitura(c.tipo === "video" && atual.previa_ok ? chavePrevia(atual.r2_key) : atual.r2_key)
+        : null,
       expirada: atual.expirada,
       historico: original.versoes
         .filter((v) => v.decisao === "reprovado" && v.motivo)

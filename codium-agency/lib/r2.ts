@@ -51,3 +51,6 @@ export function urlDownload(key: string, nomeArquivo: string) {
     "response-content-disposition": `attachment; filename="${nome}"`,
   });
 }
+
+/** Chave da prévia leve de um vídeo (gerada pelo servidor). */
+export const chavePrevia = (key: string) => `previa/${key}.mp4`;

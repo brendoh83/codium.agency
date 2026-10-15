@@ -119,7 +119,8 @@ export async function regerarLink(clienteId: string): Promise<{ erro?: string; t
 
 async function apagarArquivos(keys: string[]) {
   // melhor esforço: se falhar, a regra de 45 dias do bucket apaga depois
-  await Promise.allSettled(keys.map((k) => apagarObjeto(k)));
+  // inclui a prévia leve (previa/<chave>.mp4); apagar chave inexistente no R2 não dá erro
+  await Promise.allSettled(keys.flatMap((k) => [k, `previa/${k}.mp4`]).map((k) => apagarObjeto(k)));
 }
 
 export async function trocarArquivo(i: {
@@ -164,6 +165,8 @@ export async function trocarArquivo(i: {
       r2_key: i.key,
       mime: i.mime,
       tamanho: i.tamanho,
+      previa_ok: false,
+      previa_tentativas: 0,
       created_at: agora.toISOString(),
       expira_em: new Date(agora.getTime() + DIAS_RETENCAO * 24 * 3600 * 1000).toISOString(),
     })
