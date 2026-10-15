@@ -12,6 +12,10 @@ export interface ItemFeed {
   versaoId: string;
   numero: number;
   url: string | null;
+  /** Link que força o download do arquivo. */
+  urlBaixar?: string | null;
+  /** Dias até o arquivo expirar (null = sem arquivo). */
+  diasRestantes?: number | null;
   expirada: boolean;
   historico: { numero: number; motivo: string }[];
 }
@@ -335,6 +339,15 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
                   Nova versão atualizada
                 </span>
               )}
+              {item.diasRestantes != null && (
+                <span className="text-[11px] text-muted-ink">
+                  {item.diasRestantes === 0
+                    ? "Expira hoje"
+                    : item.diasRestantes === 1
+                      ? "Expira em 1 dia"
+                      : `Expira em ${item.diasRestantes} dias`}
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -354,6 +367,14 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         </div>
 
         <div className="max-h-[46dvh] shrink-0 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-6">
+        {item.urlBaixar && (
+          <a href={item.urlBaixar} download className={`mb-3 w-full ${BOTAO_SECUNDARIO}`}>
+            <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+              <path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Baixar arquivo
+          </a>
+        )}
         {item.estado === "reprovado" && (
           <p className="flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
             <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-copper-500" />

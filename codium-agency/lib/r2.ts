@@ -17,11 +17,17 @@ function config() {
   };
 }
 
-async function assinar(method: "PUT" | "GET", key: string, expiraSeg: number): Promise<string> {
+async function assinar(
+  method: "PUT" | "GET",
+  key: string,
+  expiraSeg: number,
+  params: Record<string, string> = {}
+): Promise<string> {
   const { aws, base } = config();
   const caminho = key.split("/").map(encodeURIComponent).join("/");
   const url = new URL(`${base}/${caminho}`);
   url.searchParams.set("X-Amz-Expires", String(expiraSeg));
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const assinada = await aws.sign(new Request(url, { method }), { aws: { signQuery: true } });
   return assinada.url;
 }
@@ -35,3 +41,13 @@ export async function apagarObjeto(key: string): Promise<void> {
 
 export const urlUpload = (key: string) => assinar("PUT", key, 900);
 export const urlLeitura = (key: string) => assinar("GET", key, 3600);
+
+/** Link de leitura que força o download com o nome informado. */
+export function urlDownload(key: string, nomeArquivo: string) {
+  const nome = Array.from(nomeArquivo)
+    .map((ch) => (ch === '"' || ch === "\\" || ch < " " ? "_" : ch))
+    .join("");
+  return assinar("GET", key, 3600, {
+    "response-content-disposition": `attachment; filename="${nome}"`,
+  });
+}

@@ -6,6 +6,7 @@ export interface Versao {
   mime: string;
   created_at: string;
   expirada: boolean;
+  expira_em?: string;
   decisao: Decisao;
   motivo: string | null;
   decidido_em: string | null;

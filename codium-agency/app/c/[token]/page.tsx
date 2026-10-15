@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/publico";
-import { urlLeitura } from "@/lib/r2";
+import { urlDownload, urlLeitura } from "@/lib/r2";
 import { comVersoes, estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import FeedCliente, { type ItemFeed } from "@/components/FeedCliente";
 import { AberturaCliente } from "@/components/AberturaCliente";
@@ -24,7 +24,15 @@ export default async function FeedPage({ params }: { params: { token: string } }
   async function paraItem(c: Conteudo): Promise<ItemFeed> {
     const original = porId.get(c.id)!;
     const atual = versaoAtual(original) as VersaoComChave;
-    const url = atual && !atual.expirada ? await urlLeitura(atual.r2_key) : null;
+    const ativa = atual && !atual.expirada;
+    const url = ativa ? await urlLeitura(atual.r2_key) : null;
+    const ext = atual.r2_key.includes(".") ? atual.r2_key.split(".").pop() : "";
+    const nomeBase = c.titulo.replace(/[\/:*?"<>|]+/g, " ").trim() || "conteudo";
+    const urlBaixar = ativa ? await urlDownload(atual.r2_key, ext ? `${nomeBase}.${ext}` : nomeBase) : null;
+    const diasRestantes =
+      ativa && atual.expira_em
+        ? Math.max(0, Math.ceil((new Date(atual.expira_em).getTime() - Date.now()) / 86400000))
+        : null;
     return {
       id: c.id,
       titulo: c.titulo,
@@ -33,6 +41,8 @@ export default async function FeedPage({ params }: { params: { token: string } }
       versaoId: atual.id,
       numero: atual.numero,
       url,
+      urlBaixar,
+      diasRestantes,
       expirada: atual.expirada,
       historico: original.versoes
         .filter((v) => v.decisao === "reprovado" && v.motivo)
