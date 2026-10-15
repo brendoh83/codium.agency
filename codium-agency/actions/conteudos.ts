@@ -6,6 +6,9 @@ import { podeNovaVersao, podeTrocarArquivo, tipoPorMime, validarArquivo } from "
 import { apagarObjeto } from "@/lib/r2";
 import { avisarClienteConteudo } from "@/lib/avisos-servidor";
 
+/** Dias que o arquivo fica disponível; precisa bater com a regra de ciclo de vida do bucket R2. */
+const DIAS_RETENCAO = 45;
+
 type Resultado = { erro?: string };
 
 function chaveValida(key: string, clienteId: string) {
@@ -115,7 +118,7 @@ export async function regerarLink(clienteId: string): Promise<{ erro?: string; t
 }
 
 async function apagarArquivos(keys: string[]) {
-  // melhor esforço: se falhar, a regra de 30 dias do bucket apaga depois
+  // melhor esforço: se falhar, a regra de 45 dias do bucket apaga depois
   await Promise.allSettled(keys.map((k) => apagarObjeto(k)));
 }
 
@@ -162,7 +165,7 @@ export async function trocarArquivo(i: {
       mime: i.mime,
       tamanho: i.tamanho,
       created_at: agora.toISOString(),
-      expira_em: new Date(agora.getTime() + 30 * 24 * 3600 * 1000).toISOString(),
+      expira_em: new Date(agora.getTime() + DIAS_RETENCAO * 24 * 3600 * 1000).toISOString(),
     })
     .eq("id", ultima.id)
     .is("decisao", null)
