@@ -152,6 +152,10 @@ export function Midia({
   );
 }
 
+function textoExpira(dias: number) {
+  return dias === 0 ? "Expira hoje" : dias === 1 ? "Expira em 1 dia" : `Expira em ${dias} dias`;
+}
+
 function Selo({ estado, className = "" }: { estado: ItemFeed["estado"]; className?: string }) {
   return (
     <span
@@ -221,6 +225,11 @@ export function Miniatura({
         </span>
       )}
       <Selo estado={item.estado} className="absolute bottom-1.5 left-1.5" />
+      {item.diasRestantes != null && (
+        <span className="pointer-events-none absolute bottom-1.5 right-1.5 text-[10px] font-medium text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+          {item.diasRestantes === 0 ? "hoje" : `${item.diasRestantes}d`}
+        </span>
+      )}
     </button>
   );
 }
@@ -339,15 +348,6 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
                   Nova versão atualizada
                 </span>
               )}
-              {item.diasRestantes != null && (
-                <span className="text-[11px] text-muted-ink">
-                  {item.diasRestantes === 0
-                    ? "Expira hoje"
-                    : item.diasRestantes === 1
-                      ? "Expira em 1 dia"
-                      : `Expira em ${item.diasRestantes} dias`}
-                </span>
-              )}
             </div>
           </div>
           <button
@@ -361,6 +361,12 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             </svg>
           </button>
         </header>
+
+        {item.diasRestantes != null && (
+          <p className="shrink-0 px-4 pb-1.5 text-[11px] leading-none text-muted-ink sm:px-6">
+            {textoExpira(item.diasRestantes)}
+          </p>
+        )}
 
         <div className="relative min-h-0 flex-1 bg-navy-950">
           <Midia item={item} grande preencher />
