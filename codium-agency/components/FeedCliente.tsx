@@ -181,12 +181,16 @@ export function Miniatura({
   const semArquivo = item.expirada || !item.url;
   const fade = `transition-[opacity,transform] duration-700 ease-out ${c.pronto ? "opacity-100" : "opacity-0"} motion-safe:group-hover:scale-[1.03]`;
   return (
+    <div className="min-w-0">
+      <p className="h-4 truncate px-0.5 text-[10px] leading-4 text-muted-ink">
+        {item.diasRestantes != null ? textoExpira(item.diasRestantes) : ""}
+      </p>
     <button
       type="button"
       onClick={onAbrir}
       aria-label={`Abrir ${item.titulo} (${ETIQUETA[item.estado].texto.toLowerCase()})`}
       style={indice === undefined ? undefined : { animationDelay: `${Math.min(indice, 12) * 45 + 280}ms` }}
-      className={`group relative aspect-[4/5] w-full overflow-hidden bg-[#EFE8E2] text-left transition-transform duration-150 motion-safe:active:scale-[0.98] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-copper-500 ${
+      className={`group relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-[#EFE8E2] text-left transition-transform duration-150 motion-safe:active:scale-[0.98] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-copper-500 ${
         indice === undefined ? "" : "motion-safe:animate-fade-up"
       }`}
     >
@@ -225,12 +229,8 @@ export function Miniatura({
         </span>
       )}
       <Selo estado={item.estado} className="absolute bottom-1.5 left-1.5" />
-      {item.diasRestantes != null && (
-        <span className="pointer-events-none absolute bottom-1.5 right-1.5 text-[10px] font-medium text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
-          {item.diasRestantes === 0 ? "hoje" : `${item.diasRestantes}d`}
-        </span>
-      )}
     </button>
+    </div>
   );
 }
 
@@ -525,7 +525,7 @@ function Secao({ titulo, total, children }: { titulo: string; total: number; chi
 
 function Grade({ itens, inicio, onAbrir }: { itens: ItemFeed[]; inicio: number; onAbrir: (id: string) => void }) {
   return (
-    <div className="grid grid-cols-3 gap-[3px] overflow-hidden rounded-xl">
+    <div className="grid grid-cols-3 gap-x-[3px] gap-y-1.5">
       {itens.map((i, n) => (
         <Miniatura key={i.id} item={i} indice={inicio + n} onAbrir={() => onAbrir(i.id)} />
       ))}
