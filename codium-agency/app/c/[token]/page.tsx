@@ -26,12 +26,17 @@ export default async function FeedPage({ params }: { params: { token: string } }
     const original = porId.get(c.id)!;
     const atual = versaoAtual(original) as VersaoComChave;
     const ativa = atual && !atual.expirada;
-    const url = ativa
-      ? await urlLeitura(c.tipo === "video" && atual.previa_ok ? chavePrevia(atual.r2_key) : atual.r2_key)
-      : null;
+    const ehCarrossel = c.tipo === "carrossel";
+    const slides = ativa && ehCarrossel ? await montarSlides(atual.arquivos, c.titulo) : undefined;
+    const url = !ativa
+      ? null
+      : ehCarrossel
+        ? (slides?.[0]?.url ?? null)
+        : await urlLeitura(c.tipo === "video" && atual.previa_ok ? chavePrevia(atual.r2_key) : atual.r2_key);
     const ext = atual.r2_key.includes(".") ? atual.r2_key.split(".").pop() : "";
     const nomeBase = c.titulo.replace(/[\/:*?"<>|]+/g, " ").trim() || "conteudo";
-    const urlBaixar = ativa ? await urlDownload(atual.r2_key, ext ? `${nomeBase}.${ext}` : nomeBase) : null;
+    const urlBaixar =
+      ativa && !ehCarrossel ? await urlDownload(atual.r2_key, ext ? `${nomeBase}.${ext}` : nomeBase) : null;
     const diasRestantes =
       ativa && atual.expira_em
         ? Math.max(0, Math.ceil((new Date(atual.expira_em).getTime() - Date.now()) / 86400000))
@@ -45,6 +50,7 @@ export default async function FeedPage({ params }: { params: { token: string } }
       numero: atual.numero,
       url,
       urlBaixar,
+      slides,
       diasRestantes,
       expirada: atual.expirada,
       historico: original.versoes

@@ -239,12 +239,15 @@ export function Midia({
       />
     );
   }
+  if (item.tipo === "carrossel" && item.slides && item.slides.length > 0) {
+    return <Carrossel slides={item.slides} titulo={item.titulo} preencher={preencher} />;
+  }
   const fade = `relative transition-opacity duration-500 ${c.pronto ? "opacity-100" : "opacity-0"}`;
   if (preencher) {
     return (
       <div className="absolute inset-0 overflow-hidden bg-navy-950">
         {!c.pronto && <div aria-hidden className="skeleton absolute inset-0" />}
-        {item.tipo === "imagem" ? (
+        {item.tipo !== "video" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             {...c.img}
@@ -268,7 +271,7 @@ export function Midia({
   return (
     <div className={`relative overflow-hidden rounded-xl bg-[#F4F0EC] ${c.pronto ? "" : "min-h-[45vh]"}`}>
       {!c.pronto && <div aria-hidden className="skeleton absolute inset-0" />}
-      {item.tipo === "imagem" ? (
+      {item.tipo !== "video" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img {...c.img} src={item.url} alt={item.titulo} className={`max-h-[60vh] w-full object-contain ${fade}`} />
       ) : (
@@ -346,7 +349,7 @@ export function Miniatura({
       ) : (
         <>
           {!c.pronto && <span aria-hidden className="skeleton absolute inset-0" />}
-          {item.tipo === "imagem" ? (
+          {item.tipo !== "video" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img {...c.img} src={item.url!} alt="" loading="lazy" className={`h-full w-full object-cover ${fade}`} />
           ) : (
@@ -363,6 +366,18 @@ export function Miniatura({
         </>
       )}
 
+      {item.tipo === "carrossel" && (
+        <span
+          aria-hidden
+          className="absolute right-1.5 top-1.5 flex h-6 items-center gap-1 rounded-full bg-navy-950/55 px-1.5 text-[10px] font-semibold text-white backdrop-blur"
+        >
+          <svg viewBox="0 0 12 12" className="h-2.5 w-2.5">
+            <rect x="3.5" y="1" width="7.5" height="7.5" rx="1.2" fill="none" stroke="white" strokeWidth="1.1" />
+            <path d="M1 3.5v6.2A1.3 1.3 0 0 0 2.3 11h6.2" fill="none" stroke="white" strokeWidth="1.1" />
+          </svg>
+          {item.slides?.length ?? ""}
+        </span>
+      )}
       {item.tipo === "video" && (
         <span aria-hidden className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-navy-950/55 backdrop-blur">
           <svg viewBox="0 0 12 12" className="ml-0.5 h-2.5 w-2.5 fill-white">
@@ -520,6 +535,18 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         </div>
 
         <div className="max-h-[46dvh] shrink-0 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-6">
+        {item.tipo === "carrossel" && item.slides && item.slides.length > 0 && (
+          <button
+            type="button"
+            onClick={() => baixarTodas(item.slides!.map((x) => x.urlBaixar))}
+            className={`mb-3 w-full ${BOTAO_SECUNDARIO}`}
+          >
+            <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+              <path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Baixar as {item.slides.length} imagens
+          </button>
+        )}
         {item.urlBaixar && (
           <a href={item.urlBaixar} download className={`mb-3 w-full ${BOTAO_SECUNDARIO}`}>
             <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">

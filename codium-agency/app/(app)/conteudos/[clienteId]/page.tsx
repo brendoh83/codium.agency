@@ -51,6 +51,8 @@ export default async function ConteudosClientePage({ params }: { params: { clien
   async function paraItem(c: Conteudo): Promise<ItemFeed> {
     const original = porId.get(c.id)!;
     const atual = versaoAtual(original) as VersaoComChave;
+    const slides =
+      c.tipo === "carrossel" && !atual.expirada ? await montarSlides(atual.arquivos, c.titulo) : undefined;
     return {
       id: c.id,
       titulo: c.titulo,
@@ -58,9 +60,12 @@ export default async function ConteudosClientePage({ params }: { params: { clien
       estado: estadoConteudo(original),
       versaoId: atual.id,
       numero: atual.numero,
-      url: !atual.expirada
-        ? await urlLeitura(c.tipo === "video" && atual.previa_ok ? chavePrevia(atual.r2_key) : atual.r2_key)
-        : null,
+      slides,
+      url: atual.expirada
+        ? null
+        : c.tipo === "carrossel"
+          ? (slides?.[0]?.url ?? null)
+          : await urlLeitura(c.tipo === "video" && atual.previa_ok ? chavePrevia(atual.r2_key) : atual.r2_key),
       expirada: atual.expirada,
       historico: original.versoes
         .filter((v) => v.decisao === "reprovado" && v.motivo)
