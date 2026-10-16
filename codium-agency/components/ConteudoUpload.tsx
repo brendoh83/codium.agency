@@ -4,7 +4,26 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registrarConteudo, registrarNovaVersao, trocarArquivo } from "@/actions/conteudos";
 
-function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) => void) {
+/** Falha de rede = a conexão caiu no meio do envio (vale tentar de novo); outras falhas não. */
+class FalhaDeRede extends Error {}
+
+async function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) => void) {
+  const TENTATIVAS = 3;
+  for (let i = 1; ; i++) {
+    try {
+      return await enviarUmaVez(url, arquivo, onProgresso);
+    } catch (e) {
+      if (!(e instanceof FalhaDeRede)) throw e;
+      if (i >= TENTATIVAS) {
+        throw new Error("A conexão caiu durante o envio e não voltou. Confira a internet e tente de novo.");
+      }
+      onProgresso(0);
+      await new Promise((r) => setTimeout(r, 1500 * i));
+    }
+  }
+}
+
+function enviarUmaVez(url: string, arquivo: File, onProgresso: (pct: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
@@ -14,7 +33,8 @@ function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) =>
     };
     xhr.onload = () =>
       xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Falha no envio do arquivo."));
-    xhr.onerror = () => reject(new Error("Falha de rede no envio do arquivo."));
+    xhr.onerror = () => reject(new FalhaDeRede("Falha de rede no envio do arquivo."));
+    xhr.onabort = () => reject(new FalhaDeRede("Envio interrompido."));
     xhr.send(arquivo);
   });
 }
