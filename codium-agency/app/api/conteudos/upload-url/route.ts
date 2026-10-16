@@ -21,6 +21,24 @@ export async function POST(req: Request) {
   const tamanho = Number(body?.tamanho);
 
   if (!UUID.test(clienteId)) return NextResponse.json({ erro: "Cliente inválido." }, { status: 400 });
+
+  // carrossel: várias imagens de uma vez
+  if (Array.isArray(body?.arquivos)) {
+    const arquivos = (body.arquivos as { mime?: unknown; tamanho?: unknown }[]).map((a) => ({
+      mime: typeof a?.mime === "string" ? a.mime : "",
+      tamanho: Number(a?.tamanho),
+    }));
+    const erroCarrossel = validarCarrossel(arquivos);
+    if (erroCarrossel) return NextResponse.json({ erro: erroCarrossel }, { status: 400 });
+    const itens = await Promise.all(
+      arquivos.map(async (a) => {
+        const k = chaveR2(clienteId, randomUUID(), a.mime);
+        return { key: k, url: await urlUpload(k) };
+      })
+    );
+    return NextResponse.json({ itens });
+  }
+
   const erro = validarArquivo(mime, tamanho);
   if (erro) return NextResponse.json({ erro }, { status: 400 });
 
