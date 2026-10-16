@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   chaveR2, comVersoes, estadoConteudo, mensagemErro, podeNovaVersao, podeTrocarArquivo, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
-  MAX_BYTES, type Conteudo, type Versao,
+  MAX_BYTES, validarCarrossel, type Conteudo, type Versao,
 } from "./conteudos.ts";
 
 const v = (numero: number, decisao: Versao["decisao"], extra: Partial<Versao> = {}): Versao => ({
@@ -86,4 +86,14 @@ test("podeTrocarArquivo: só enquanto o cliente não respondeu", () => {
   assert.equal(podeTrocarArquivo({ decisao: null }), true);
   assert.equal(podeTrocarArquivo({ decisao: "aprovado" }), false);
   assert.equal(podeTrocarArquivo({ decisao: "reprovado" }), false);
+});
+
+test("validarCarrossel: 2 a 10 imagens, só imagem", () => {
+  const img = { mime: "image/jpeg", tamanho: 1000 };
+  assert.match(validarCarrossel([img]) ?? "", /pelo menos 2/);
+  assert.equal(validarCarrossel([img, img]), null);
+  assert.equal(validarCarrossel(Array(10).fill(img)), null);
+  assert.match(validarCarrossel(Array(11).fill(img)) ?? "", /no máximo 10/);
+  assert.match(validarCarrossel([img, { mime: "video/mp4", tamanho: 10 }]) ?? "", /só imagens/);
+  assert.match(validarCarrossel([img, { mime: "image/png", tamanho: MAX_BYTES + 1 }]) ?? "", /500 MB/);
 });

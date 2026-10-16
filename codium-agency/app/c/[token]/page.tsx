@@ -4,6 +4,7 @@ import { createPublicClient } from "@/lib/supabase/publico";
 import { chavePrevia, urlDownload, urlLeitura } from "@/lib/r2";
 import { comVersoes, estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import FeedCliente, { type ItemFeed } from "@/components/FeedCliente";
+import { montarSlides } from "@/lib/slides";
 import { AberturaCliente } from "@/components/AberturaCliente";
 
 export const dynamic = "force-dynamic";

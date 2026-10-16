@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
-import { chaveR2, validarArquivo } from "@/lib/conteudos";
+import { chaveR2, validarArquivo, validarCarrossel } from "@/lib/conteudos";
 import { urlUpload } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";

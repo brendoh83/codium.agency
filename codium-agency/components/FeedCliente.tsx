@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { responderVersao } from "@/actions/feed";
 
 export interface ItemFeed {
   id: string;
   titulo: string;
-  tipo: "video" | "imagem";
+  tipo: "video" | "imagem" | "carrossel";
   estado: "pendente" | "reprovado" | "aprovado";
   versaoId: string;
   numero: number;
   url: string | null;
+  /** Só carrossel: imagens em ordem (leitura + download). */
+  slides?: { url: string; urlBaixar: string }[];
   /** Link que força o download do arquivo. */
   urlBaixar?: string | null;
   /** Dias até o arquivo expirar (null = sem arquivo). */
@@ -87,6 +89,137 @@ function SemArquivo({ item, className }: { item: ItemFeed; className: string }) 
   );
 }
 
+function SetaCarrossel({ lado, onClick }: { lado: "esq" | "dir"; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={lado === "esq" ? "Imagem anterior" : "Próxima imagem"}
+      className={`absolute top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-navy-900 shadow-md backdrop-blur hover:bg-white sm:flex ${
+        lado === "esq" ? "left-2" : "right-2"
+      } ${TOQUE} ${FOCO}`}
+    >
+      <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+        <path
+          d={lado === "esq" ? "M10 3L5 8l5 5" : "M6 3l5 5-5 5"}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+/** Carrossel no estilo do Instagram: a próxima imagem aparece pela metade, setas e arraste. */
+function Carrossel({
+  slides,
+  titulo,
+  preencher,
+}: {
+  slides: { url: string }[];
+  titulo: string;
+  preencher?: boolean;
+}) {
+  const faixa = useRef<HTMLDivElement>(null);
+  const [atual, setAtual] = useState(0);
+  const arrasto = useRef<{ x: number; rolagem: number; ativo: boolean } | null>(null);
+
+  function passo() {
+    const el = faixa.current;
+    const primeiro = el?.firstElementChild as HTMLElement | null;
+    return primeiro ? primeiro.offsetWidth + 8 : 0;
+  }
+
+  function ir(delta: number) {
+    const el = faixa.current;
+    if (!el) return;
+    el.scrollTo({ left: Math.max(0, el.scrollLeft + delta * passo()), behavior: "smooth" });
+  }
+
+  function aoRolar() {
+    const el = faixa.current;
+    const p = passo();
+    if (!el || !p) return;
+    setAtual(Math.min(slides.length - 1, Math.round(el.scrollLeft / p)));
+  }
+
+  // mouse: arrastar com o botão (toque já rola nativamente)
+  function down(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse" || !faixa.current) return;
+    arrasto.current = { x: e.clientX, rolagem: faixa.current.scrollLeft, ativo: true };
+    faixa.current.style.scrollSnapType = "none";
+    faixa.current.setPointerCapture(e.pointerId);
+  }
+  function move(e: React.PointerEvent<HTMLDivElement>) {
+    const a = arrasto.current;
+    if (!a?.ativo || !faixa.current) return;
+    faixa.current.scrollLeft = a.rolagem - (e.clientX - a.x);
+  }
+  function up() {
+    const el = faixa.current;
+    if (!arrasto.current?.ativo || !el) return;
+    arrasto.current = null;
+    const p = passo();
+    const alvo = p ? Math.round(el.scrollLeft / p) * p : el.scrollLeft;
+    el.scrollTo({ left: alvo, behavior: "smooth" });
+    setTimeout(() => {
+      if (el) el.style.scrollSnapType = "";
+    }, 350);
+  }
+
+  return (
+    <div className={preencher ? "absolute inset-0 flex flex-col bg-navy-950" : "relative"}>
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={faixa}
+          onScroll={aoRolar}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          className={`flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            preencher ? "h-full" : ""
+          } cursor-grab active:cursor-grabbing`}
+        >
+          {slides.map((s, i) => (
+            <div
+              key={s.url}
+              className={`relative shrink-0 snap-start overflow-hidden ${
+                preencher ? "h-full w-[72%]" : "aspect-[4/5] w-[72%] rounded-xl"
+              } bg-[#F4F0EC]`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={s.url}
+                alt={`${titulo} — imagem ${i + 1} de ${slides.length}`}
+                draggable={false}
+                className="h-full w-full select-none object-contain"
+              />
+            </div>
+          ))}
+          <div aria-hidden className="w-[28%] shrink-0" />
+        </div>
+        {atual > 0 && <SetaCarrossel lado="esq" onClick={() => ir(-1)} />}
+        {atual < slides.length - 1 && <SetaCarrossel lado="dir" onClick={() => ir(1)} />}
+        <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-navy-950/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+          {atual + 1}/{slides.length}
+        </span>
+      </div>
+      <div className={`flex justify-center gap-1.5 ${preencher ? "py-3" : "pt-2"}`} aria-hidden>
+        {slides.map((s, i) => (
+          <span
+            key={s.url}
+            className={`h-1.5 w-1.5 rounded-full transition-colors ${i === atual ? "bg-copper-500" : "bg-white/40 " + (preencher ? "" : "!bg-line")}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Midia({
   item,
   grande,
@@ -150,6 +283,20 @@ export function Midia({
       )}
     </div>
   );
+}
+
+/** Baixa uma imagem após a outra (o navegador pode pedir para permitir vários downloads). */
+function baixarTodas(urls: string[]) {
+  urls.forEach((u, i) => {
+    setTimeout(() => {
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = "";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }, i * 600);
+  });
 }
 
 function textoExpira(dias: number) {

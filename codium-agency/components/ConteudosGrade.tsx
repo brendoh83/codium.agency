@@ -69,14 +69,14 @@ function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: str
             <p className="text-xs text-slate-500">
               O cliente ainda não respondeu. Enviar outro arquivo substitui este (continua na mesma versão).
             </p>
-            <ConteudoUpload clienteId={clienteId} conteudoId={item.id} trocar onConcluido={onFechar} />
+            <ConteudoUpload clienteId={clienteId} conteudoId={item.id} trocar tipoConteudo={item.tipo} onConcluido={onFechar} />
           </div>
         )}
 
         {item.estado === "reprovado" && (
           <div className="space-y-1">
             <p className="text-xs text-slate-500">Reprovado pelo cliente. Suba a correção como nova versão.</p>
-            <ConteudoUpload clienteId={clienteId} conteudoId={item.id} onConcluido={onFechar} />
+            <ConteudoUpload clienteId={clienteId} conteudoId={item.id} tipoConteudo={item.tipo} onConcluido={onFechar} />
           </div>
         )}
 

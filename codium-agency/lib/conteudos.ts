@@ -10,12 +10,14 @@ export interface Versao {
   decisao: Decisao;
   motivo: string | null;
   decidido_em: string | null;
+  /** Só carrossel: imagens da versão, em ordem. */
+  arquivos?: { r2_key: string; mime: string; ordem: number }[];
 }
 
 export interface Conteudo {
   id: string;
   titulo: string;
-  tipo: "video" | "imagem";
+  tipo: "video" | "imagem" | "carrossel";
   created_at: string;
   versoes: Versao[];
 }
@@ -92,4 +94,24 @@ export function mensagemErro(msg: string): string {
   if (msg.includes("arquivo expirado")) return "O arquivo expirou. Peça uma nova versão.";
   if (msg.includes("versao antiga")) return "Existe uma versão mais nova deste conteúdo.";
   return "Não foi possível enviar. Tente de novo.";
+}
+
+export const MIN_SLIDES = 2;
+export const MAX_SLIDES = 10;
+
+/** Mensagem do primeiro problema do carrossel, ou null se estiver válido. */
+export function validarCarrossel(arquivos: { mime: string; tamanho: number }[]): string | null {
+  if (arquivos.length < MIN_SLIDES) return `O carrossel precisa de pelo menos ${MIN_SLIDES} imagens.`;
+  if (arquivos.length > MAX_SLIDES) return `O carrossel aceita no máximo ${MAX_SLIDES} imagens.`;
+  for (const a of arquivos) {
+    const erro = validarArquivo(a.mime, a.tamanho);
+    if (erro) return erro;
+    if (tipoPorMime(a.mime) !== "imagem") return "O carrossel aceita só imagens (JPG, PNG ou WEBP).";
+  }
+  return null;
+}
+
+/** Nome do tipo para mensagens ("um vídeo", "uma imagem", "um carrossel"). */
+export function artigoTipo(tipo: string): string {
+  return tipo === "video" ? "um vídeo" : tipo === "carrossel" ? "um carrossel" : "uma imagem";
 }

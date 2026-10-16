@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chavePrevia, urlLeitura } from "@/lib/r2";
+import { montarSlides } from "@/lib/slides";
 import { estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import ConteudoUpload from "@/components/ConteudoUpload";
 import ConteudosGrade from "@/components/ConteudosGrade";
@@ -27,7 +28,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
   const { data: conteudos } = await supabase
     .from("conteudos")
     .select(
-      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, previa_ok, decisao, motivo, decidido_em)"
+      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, previa_ok, decisao, motivo, decidido_em, conteudo_arquivos(r2_key, mime, ordem))"
     )
     .eq("cliente_id", cliente.id)
     .order("created_at", { ascending: false });
@@ -39,7 +40,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
       tipo: c.tipo,
       created_at: c.created_at,
       versoes: ((c.conteudo_versoes ?? []) as any[])
-        .map((v) => ({ ...v, expirada: new Date(v.expira_em) < new Date() }))
+        .map((v) => ({ ...v, arquivos: v.conteudo_arquivos ?? [], expirada: new Date(v.expira_em) < new Date() }))
         .sort((a, b) => a.numero - b.numero) as VersaoComChave[],
     }))
     .filter((c) => c.versoes.length > 0);
