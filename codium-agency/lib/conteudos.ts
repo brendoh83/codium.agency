@@ -31,6 +31,9 @@ const MIMES: Record<string, { tipo: "video" | "imagem"; ext: string }> = {
   "video/quicktime": { tipo: "video", ext: "mov" },
   "video/webm": { tipo: "video", ext: "webm" },
   "image/jpeg": { tipo: "imagem", ext: "jpg" },
+  // variações que alguns sistemas/arquivos de WhatsApp informam para JPEG
+  "image/jpg": { tipo: "imagem", ext: "jpg" },
+  "image/pjpeg": { tipo: "imagem", ext: "jpg" },
   "image/png": { tipo: "imagem", ext: "png" },
   "image/webp": { tipo: "imagem", ext: "webp" },
 };
@@ -114,4 +117,25 @@ export function validarCarrossel(arquivos: { mime: string; tamanho: number }[]):
 /** Nome do tipo para mensagens ("um vídeo", "uma imagem", "um carrossel"). */
 export function artigoTipo(tipo: string): string {
   return tipo === "video" ? "um vídeo" : tipo === "carrossel" ? "um carrossel" : "uma imagem";
+}
+
+const POR_EXTENSAO: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  jpe: "image/jpeg",
+  jfif: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+
+/** Tipo do arquivo: normaliza JPEG e, se o navegador não informou o tipo, deduz pela extensão. */
+export function mimePorArquivo(nome: string, tipoInformado: string): string {
+  const t = tipoInformado.toLowerCase();
+  if (t === "image/jpg" || t === "image/pjpeg") return "image/jpeg";
+  if (MIMES[t]) return t;
+  const ext = nome.includes(".") ? nome.split(".").pop()!.toLowerCase() : "";
+  return POR_EXTENSAO[ext] ?? tipoInformado;
 }

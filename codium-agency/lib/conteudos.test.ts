@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   chaveR2, comVersoes, estadoConteudo, mensagemErro, podeNovaVersao, podeTrocarArquivo, separarFeed, tipoPorMime, validarArquivo, versaoAtual,
-  MAX_BYTES, validarCarrossel, type Conteudo, type Versao,
+  MAX_BYTES, validarCarrossel, mimePorArquivo, type Conteudo, type Versao,
 } from "./conteudos.ts";
 
 const v = (numero: number, decisao: Versao["decisao"], extra: Partial<Versao> = {}): Versao => ({
@@ -96,4 +96,16 @@ test("validarCarrossel: 2 a 10 imagens, só imagem", () => {
   assert.match(validarCarrossel(Array(11).fill(img)) ?? "", /no máximo 10/);
   assert.match(validarCarrossel([img, { mime: "video/mp4", tamanho: 10 }]) ?? "", /só imagens/);
   assert.match(validarCarrossel([img, { mime: "image/png", tamanho: MAX_BYTES + 1 }]) ?? "", /500 MB/);
+});
+
+test("mimePorArquivo: JPEG em qualquer variação ou sem tipo informado", () => {
+  assert.equal(mimePorArquivo("foto.jpeg", "image/jpeg"), "image/jpeg");
+  assert.equal(mimePorArquivo("foto.jpeg", ""), "image/jpeg");
+  assert.equal(mimePorArquivo("FOTO.JPG", ""), "image/jpeg");
+  assert.equal(mimePorArquivo("foto.jfif", "application/octet-stream"), "image/jpeg");
+  assert.equal(mimePorArquivo("foto.jpg", "image/jpg"), "image/jpeg");
+  assert.equal(mimePorArquivo("foto.jpg", "image/pjpeg"), "image/jpeg");
+  assert.equal(mimePorArquivo("video.MOV", ""), "video/quicktime");
+  assert.equal(validarArquivo("image/jpg", 100), null);
+  assert.match(validarArquivo(mimePorArquivo("doc.pdf", "application/pdf"), 100) ?? "", /não permitido/);
 });

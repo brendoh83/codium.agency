@@ -10,10 +10,12 @@ import {
   trocarArquivo,
   trocarCarrossel,
 } from "@/actions/conteudos";
-import { MAX_SLIDES, MIN_SLIDES } from "@/lib/conteudos";
+import { MAX_SLIDES, MIN_SLIDES, mimePorArquivo } from "@/lib/conteudos";
 
 /** Falha de rede = a conexão caiu no meio do envio (vale tentar de novo); outras falhas não. */
 class FalhaDeRede extends Error {}
+
+const mimeDe = (f: File) => mimePorArquivo(f.name, f.type);
 
 async function enviarArquivo(url: string, arquivo: File, onProgresso: (pct: number) => void) {
   const TENTATIVAS = 3;
@@ -35,7 +37,7 @@ function enviarUmaVez(url: string, arquivo: File, onProgresso: (pct: number) => 
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", arquivo.type);
+    xhr.setRequestHeader("Content-Type", mimeDe(arquivo));
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgresso(Math.round((e.loaded / e.total) * 100));
     };
@@ -139,7 +141,7 @@ export default function ConteudoUpload({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clienteId,
-        arquivos: imagens.map((i) => ({ mime: i.arquivo.type, tamanho: i.arquivo.size })),
+        arquivos: imagens.map((i) => ({ mime: mimeDe(i.arquivo), tamanho: i.arquivo.size })),
       }),
     });
     const j = await r.json();
@@ -154,7 +156,7 @@ export default function ConteudoUpload({
     }
     const arquivos = imagens.map((img, n) => ({
       key: itens[n].key,
-      mime: img.arquivo.type,
+      mime: mimeDe(img.arquivo),
       tamanho: img.arquivo.size,
     }));
     const res = trocar
@@ -170,12 +172,12 @@ export default function ConteudoUpload({
     const r = await fetch("/api/conteudos/upload-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clienteId, mime: arquivo.type, tamanho: arquivo.size }),
+      body: JSON.stringify({ clienteId, mime: mimeDe(arquivo), tamanho: arquivo.size }),
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.erro ?? "Não foi possível preparar o envio.");
     await enviarArquivo(j.url, arquivo, setPct);
-    const base = { clienteId, key: j.key as string, mime: arquivo.type, tamanho: arquivo.size };
+    const base = { clienteId, key: j.key as string, mime: mimeDe(arquivo), tamanho: arquivo.size };
     const res = trocar
       ? await trocarArquivo({ ...base, conteudoId: conteudoId as string })
       : novaVersao
@@ -256,7 +258,7 @@ export default function ConteudoUpload({
             ref={inputRef}
             type="file"
             multiple
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.jfif,.png,.webp"
             disabled={ocupado || imagens.length >= MAX_SLIDES}
             onChange={(e) => adicionar(e.target.files)}
             className="block w-full text-sm text-slate-600"
@@ -325,7 +327,7 @@ export default function ConteudoUpload({
         <input
           ref={inputRef}
           type="file"
-          accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp"
+          accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,.mp4,.mov,.webm,.jpg,.jpeg,.jfif,.png,.webp"
           disabled={ocupado}
           onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
           className="block w-full text-sm text-slate-600"
