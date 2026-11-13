@@ -14,12 +14,24 @@ para o cliente e dizer quais conteúdos deram certo.
 ## Objetivos
 
 - Subir conteúdo com legenda (e hashtags dentro da legenda) e data/hora de postagem.
-- O cliente vê mídia + legenda no feed dele e responde por partes: aprovar tudo, reprovar só a mídia,
-  ou reprovar só a legenda (escrevendo o que mudar). Parte aprovada continua aprovada.
+- O cliente vê mídia + legenda + data da postagem e responde por partes: aprovar tudo, reprovar só a mídia,
+  só a legenda, ou sugerir outra data (escrevendo o que mudar). Parte aprovada continua aprovada.
 - Postar sozinho na hora marcada, só se mídia e legenda estiverem aprovadas.
 - Cobrar a aprovação no grupo do cliente (WhatsApp) antes da data.
 - Conectar o Instagram do cliente uma vez, pelo dash, e criar/ligar a conta dele no AutoDM.
 - Tudo que sobe pelo sistema é "nosso"; o resto do perfil é "do cliente" (usado na fase 2).
+
+## Onde fica
+
+Tudo dentro do dashboard, na aba Conteúdos: ao abrir o cliente (ex.: Toque Final), a tela de hoje (subir
+conteúdo para aprovação) ganha legenda, hashtags e data/hora de postagem. A página do cliente (`/c/<token>`)
+continua a mesma, mostrando mídia + legenda + data de postagem.
+
+## Visão maior (não é desta fase)
+
+O número do WhatsApp conectado ao dash vira uma assistente da agência: além de cobrar aprovação, mais
+tarde cobrar pagamentos e enviar nota fiscal para os clientes que pedem. O módulo de mensagens desta fase
+deve ser reaproveitável para isso, mas nada disso entra agora.
 
 ## Não-objetivos (fase 1)
 
@@ -69,7 +81,8 @@ dois lados (ver Pendências do construtor).
 3. Cliente abre o link e vê mídia + legenda + "Posta em dd/mm às hh:mm". Escolhe:
    - **Aprovar tudo**; ou
    - **Reprovar mídia** (motivo em texto); ou
-   - **Reprovar legenda** (motivo em texto); ou os dois.
+   - **Reprovar legenda** (motivo em texto); ou os dois; ou
+   - **Sugerir outra data** (dia/hora e recado).
 4. Aviso no grupo da equipe dizendo qual parte foi aprovada ou reprovada e por quê.
 5. Parte reprovada volta para a equipe: mídia nova = subir de novo (versão nova da mídia); legenda nova =
    editar o texto no dash, **sem subir a mídia de novo**. Só a parte alterada volta para aprovação.
@@ -77,22 +90,39 @@ dois lados (ver Pendências do construtor).
    (**postando → postado** ou **falhou**).
 7. Se a equipe alterar uma parte já aprovada, só ela volta para aprovação.
 
-### Cobrança automática (nossa proposta; ajustável)
+### Cobrança automática (o número do dash age como assistente)
 
-- Se não estiver aprovado, o número do dash escreve no grupo do cliente: 24 h antes, 6 h antes e 1 h antes
-  da postagem (só os horários que ainda não passaram quando o conteúdo foi subido). Texto curto, com o link.
-- Se reprovado e ninguém subiu a correção até 2 h antes, avisa o grupo da equipe.
-- Cobrança para quando o conteúdo é aprovado, excluído ou reagendado (recalcula).
+Não é por horas fixas: depende de quanto tempo falta para a postagem. Há conteúdo gravado às 17 h que
+precisa sair às 19h30, e conteúdo marcado para a semana que vem.
 
-### Horário chegou sem aprovação (nossa proposta)
+- **Ao subir:** o pedido de aprovação vai na hora para o grupo do cliente, com o link (como hoje).
+- **Cobrança por "visualizou":** o sistema registra quando o cliente abriu o link de aprovação (isso é
+  certo; o "visto" azul do WhatsApp em grupo só aparece quando todo mundo viu, então não serve de sinal).
+  Se o cliente abriu e, passados cerca de 20 minutos, nada foi decidido, o número manda um lembrete
+  citando a data da postagem ("está agendado para amanhã às 8h, falta sua aprovação").
+- **Sem abrir o link:** os lembretes ficam mais próximos conforme a postagem se aproxima, em proporção ao
+  tempo que resta (com intervalo mínimo entre eles para não encher o grupo). Detalhe da cadência é do
+  construtor; a regra é: quanto mais perto da data, mais insistente.
+- Se reprovado e ninguém subiu a correção perto do horário, avisa o grupo da equipe.
+- A cobrança para quando o conteúdo é aprovado, excluído ou reagendado (recalcula).
 
-Não posta. Avisa a equipe no grupo, marca **perdeu o horário** e a equipe escolhe nova data (a aprovação
-anterior continua válida se nada mudou).
+### Horário chegou sem aprovação
+
+Não posta. O número escreve no grupo do cliente algo como: "Não foi postado porque ainda falta sua
+aprovação. Se puder aprovar agora, a gente já vê o melhor horário para postar." A equipe também é avisada,
+o conteúdo fica **perdeu o horário** e a equipe escolhe a nova data (aprovações já dadas continuam).
+
+### Cliente quer outra data
+
+O cliente vê "Posta em dd/mm às hh:mm". Se quiser outro dia ("não posta amanhã, deixa pra quarta"), usa
+**Sugerir outra data**, escolhe dia/hora e pode escrever um recado. Vai para o grupo da equipe; a equipe
+confirma no dash (a data não muda sozinha). A data é a terceira parte da aprovação, ao lado de mídia e legenda.
 
 ## Aprovação em partes (mudança no que existe)
 
-Hoje cada versão tem uma decisão só. Passa a ter duas (mídia e legenda), cada uma com histórico próprio de
-reprovações e motivos. O estado do conteúdo é derivado: tudo aprovado = pronto para agendar. A regra
+Hoje cada versão tem uma decisão só. Passa a ter três (mídia, legenda e data), cada uma com histórico próprio de
+reprovações e motivos. Exemplos dados: "legenda ok, mas quero a edição diferente" → só a mídia volta
+para edição e aprovação; "troque a legenda" → só a legenda fica pendente. O estado do conteúdo é derivado: tudo aprovado = pronto para agendar. A regra
 "versão nova substitui a anterior" continua valendo, agora por parte.
 
 ## Conexão do Instagram e ligação com o AutoDM
