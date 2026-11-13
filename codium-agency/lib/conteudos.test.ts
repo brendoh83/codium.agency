@@ -109,3 +109,39 @@ test("mimePorArquivo: JPEG em qualquer variação ou sem tipo informado", () => 
   assert.equal(validarArquivo("image/jpg", 100), null);
   assert.match(validarArquivo(mimePorArquivo("doc.pdf", "application/pdf"), 100) ?? "", /não permitido/);
 });
+
+// ---- aprovação por partes ----
+import { estadoPartes, estadoGeral, prontoParaAgendar, type RevisaoLegenda, type RevisaoData } from "./conteudos.ts";
+
+const leg = (numero: number, decisao: RevisaoLegenda["decisao"]): RevisaoLegenda => ({
+  numero, texto: `t${numero}`, decisao, motivo: decisao === "reprovado" ? "x" : null,
+  decidido_em: decisao ? "2026-10-02T00:00:00Z" : null,
+});
+const dat = (numero: number, decisao: RevisaoData["decisao"]): RevisaoData => ({
+  numero, agendado_para: "2026-11-20T11:00:00Z", decisao, motivo: decisao === "reprovado" ? "x" : null,
+  sugerida_para: null, decidido_em: decisao ? "2026-10-02T00:00:00Z" : null,
+});
+
+test("estadoPartes: conteudo antigo tem legenda e data null", () => {
+  const p = estadoPartes(c("a", [v(1, "aprovado")]));
+  assert.deepEqual(p, { midia: "aprovado", legenda: null, data: null });
+});
+
+test("estadoPartes: usa a ultima revisao de cada parte", () => {
+  const cont = { ...c("a", [v(1, "reprovado"), v(2, "aprovado")]), legendas: [leg(2, null), leg(1, "reprovado")], datas: [dat(1, "aprovado")] };
+  assert.deepEqual(estadoPartes(cont), { midia: "aprovado", legenda: "pendente", data: "aprovado" });
+});
+
+test("estadoGeral: reprovado > pendente > aprovado; ignora partes nao exigidas", () => {
+  assert.equal(estadoGeral({ midia: "aprovado", legenda: "reprovado", data: "pendente" }), "reprovado");
+  assert.equal(estadoGeral({ midia: "aprovado", legenda: "pendente", data: "aprovado" }), "pendente");
+  assert.equal(estadoGeral({ midia: "aprovado", legenda: "aprovado", data: "aprovado" }), "aprovado");
+  assert.equal(estadoGeral({ midia: "aprovado", legenda: null, data: null }), "aprovado");
+  assert.equal(estadoGeral({ midia: "pendente", legenda: null, data: null }), "pendente");
+});
+
+test("prontoParaAgendar: so com as tres aprovadas", () => {
+  assert.equal(prontoParaAgendar({ midia: "aprovado", legenda: null, data: null }), false);
+  assert.equal(prontoParaAgendar({ midia: "aprovado", legenda: "aprovado", data: "pendente" }), false);
+  assert.equal(prontoParaAgendar({ midia: "aprovado", legenda: "aprovado", data: "aprovado" }), true);
+});

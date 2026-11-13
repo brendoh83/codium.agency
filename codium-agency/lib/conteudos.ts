@@ -20,6 +20,27 @@ export interface Conteudo {
   tipo: "video" | "imagem" | "carrossel";
   created_at: string;
   versoes: Versao[];
+  legendas?: RevisaoLegenda[];
+  datas?: RevisaoData[];
+}
+
+export type Parte = "midia" | "legenda" | "data";
+
+export interface RevisaoLegenda {
+  numero: number;
+  texto: string;
+  decisao: Decisao;
+  motivo: string | null;
+  decidido_em: string | null;
+}
+
+export interface RevisaoData {
+  numero: number;
+  agendado_para: string;
+  decisao: Decisao;
+  motivo: string | null;
+  sugerida_para: string | null;
+  decidido_em: string | null;
 }
 
 export type Estado = "pendente" | "reprovado" | "aprovado";
@@ -138,4 +159,34 @@ export function mimePorArquivo(nome: string, tipoInformado: string): string {
   if (MIMES[t]) return t;
   const ext = nome.includes(".") ? nome.split(".").pop()!.toLowerCase() : "";
   return POR_EXTENSAO[ext] ?? tipoInformado;
+}
+
+const estadoDe = (d: Decisao): Estado => (d === "aprovado" ? "aprovado" : d === "reprovado" ? "reprovado" : "pendente");
+
+function ultima<T extends { numero: number }>(rs: T[] | undefined): T | undefined {
+  return rs?.reduce<T | undefined>((m, r) => (!m || r.numero > m.numero ? r : m), undefined);
+}
+
+export interface EstadoPartes {
+  midia: Estado;
+  legenda: Estado | null;
+  data: Estado | null;
+}
+
+/** Estado de cada parte; null = parte não exigida (conteúdo antigo, só mídia). */
+export function estadoPartes(c: Conteudo): EstadoPartes {
+  const l = ultima(c.legendas);
+  const d = ultima(c.datas);
+  return { midia: estadoConteudo(c), legenda: l ? estadoDe(l.decisao) : null, data: d ? estadoDe(d.decisao) : null };
+}
+
+export function estadoGeral(p: EstadoPartes): Estado {
+  const todas = [p.midia, p.legenda, p.data].filter((e): e is Estado => e !== null);
+  if (todas.includes("reprovado")) return "reprovado";
+  if (todas.includes("pendente")) return "pendente";
+  return "aprovado";
+}
+
+export function prontoParaAgendar(p: EstadoPartes): boolean {
+  return p.midia === "aprovado" && p.legenda === "aprovado" && p.data === "aprovado";
 }
