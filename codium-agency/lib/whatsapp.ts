@@ -78,16 +78,31 @@ export async function numeroConectado(instancia: string): Promise<string | null>
  * O endpoint /group/fetchAllGroups consulta o WhatsApp ao vivo e trava em contas com muitos grupos.
  */
 export async function listarGrupos(instancia: string): Promise<{ id: string; nome: string }[]> {
-  const r = await evo<{ remoteJid?: string; pushName?: string | null; isGroup?: boolean }[]>(
-    `/chat/findContacts/${inst(instancia)}`,
-    { method: "POST", body: "{}" },
-    TIMEOUT_GRUPOS_MS
-  );
   const porId = new Map<string, { id: string; nome: string }>();
-  for (const c of Array.isArray(r) ? r : []) {
-    const id = c.remoteJid;
-    if (typeof id !== "string" || !id.endsWith("@g.us") || porId.has(id)) continue;
-    porId.set(id, { id, nome: c.pushName?.trim() || id });
+  // 1) consulta ao vivo no WhatsApp do número conectado: nunca devolve grupos de número anterior
+  try {
+    const vivo = await evo<{ id?: string; subject?: string }[]>(
+      `/group/fetchAllGroups/${inst(instancia)}?getParticipants=false`,
+      {},
+      TIMEOUT_GRUPOS_MS
+    );
+    for (const g of Array.isArray(vivo) ? vivo : []) {
+      if (typeof g.id === "string" && g.id.endsWith("@g.us") && !porId.has(g.id)) {
+        porId.set(g.id, { id: g.id, nome: g.subject?.trim() || g.id });
+      }
+    }
+  } catch {
+    // 2) demorou ou falhou: cai na lista de contatos já sincronizados no servidor (pode estar velha)
+    const r = await evo<{ remoteJid?: string; pushName?: string | null; isGroup?: boolean }[]>(
+      `/chat/findContacts/${inst(instancia)}`,
+      { method: "POST", body: "{}" },
+      TIMEOUT_GRUPOS_MS
+    );
+    for (const c of Array.isArray(r) ? r : []) {
+      const id = c.remoteJid;
+      if (typeof id !== "string" || !id.endsWith("@g.us") || porId.has(id)) continue;
+      porId.set(id, { id, nome: c.pushName?.trim() || id });
+    }
   }
   return [...porId.values()].sort((a, b) => {
     // grupos sem nome (nome = id) vão para o fim da lista
