@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ehAdministrador } from "@/lib/admin";
-import { conectar, criarInstancia, estadoConexao, listarGrupos, numeroConectado, INSTANCIA_PADRAO } from "@/lib/whatsapp";
+import { conectar, criarInstancia, desconectar, estadoConexao, listarGrupos, numeroConectado, INSTANCIA_PADRAO } from "@/lib/whatsapp";
 import { avisarClienteConteudo, pendentesDoCliente } from "@/lib/avisos-servidor";
 
 async function usuario() {
@@ -74,6 +74,21 @@ export async function iniciarConexao(
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Falha ao conectar." };
   }
+}
+
+/** Derruba a sessão antes de trocar número: sem isso o servidor fica com a sessão antiga presa e nunca atualiza grupos/contatos. */
+export async function desconectarWhatsapp(): Promise<{ erro?: string }> {
+  const { supabase, user } = await usuario();
+  if (!user) return { erro: "Não autenticado." };
+  if (!(await ehAdministrador(supabase, user.id))) return { erro: "Só o administrador pode desconectar." };
+  try {
+    await desconectar(await instanciaAtual(supabase));
+    await supabase.from("app_config").delete().eq("chave", "whatsapp_grupos_cache");
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : "Falha ao desconectar." };
+  }
+  revalidatePath("/configuracoes");
+  return {};
 }
 
 const CACHE_GRUPOS_MS = 10 * 60 * 1000;

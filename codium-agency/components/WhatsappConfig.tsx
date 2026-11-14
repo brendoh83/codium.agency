@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { gruposDisponiveis, iniciarConexao, salvarGrupoEquipe, statusWhatsapp } from "@/actions/whatsapp";
+import { desconectarWhatsapp, gruposDisponiveis, iniciarConexao, salvarGrupoEquipe, statusWhatsapp } from "@/actions/whatsapp";
 
 type Status = Awaited<ReturnType<typeof statusWhatsapp>>;
 
@@ -59,6 +59,18 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
       setQr(r.qr ?? null);
       setCodigo(r.codigo ?? null);
       setEstado("connecting");
+    });
+  }
+
+  function desconectar() {
+    if (!confirm("Desconecta o número atual. Você vai precisar escanear o QR de novo. Continuar?")) return;
+    setErro(null);
+    start(async () => {
+      const r = await desconectarWhatsapp();
+      if (r.erro) return setErro(r.erro);
+      setEstado("close");
+      setGrupos(null);
+      router.refresh();
     });
   }
 
@@ -140,6 +152,13 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
 
       {estado === "open" && (
         <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+          <button
+            onClick={desconectar}
+            disabled={pendente}
+            className="rounded-lg border border-danger px-3 py-2 text-xs font-medium text-danger disabled:opacity-50"
+          >
+            Desconectar (necessário antes de trocar de número)
+          </button>
           <div className="text-xs uppercase text-slate-400">
             Grupo da equipe (recebe aprovações e reprovações)
           </div>
