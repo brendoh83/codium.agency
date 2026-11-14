@@ -2,6 +2,12 @@
 export const INSTANCIA_PADRAO = "codium-agencia";
 
 const TIMEOUT_MS = 8000;
+
+/** Nome da instância na URL: só letras, números, _ e -; qualquer outra coisa é recusada (evita ../ e afins). */
+function inst(instancia: string): string {
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(instancia)) throw new Error("Nome de instância inválido.");
+  return encodeURIComponent(instancia);
+}
 // listar grupos pode demorar: o WhatsApp sincroniza todos os grupos da conta
 const TIMEOUT_GRUPOS_MS = 50_000;
 
@@ -50,11 +56,11 @@ export const criarInstancia = (instancia: string) =>
 
 export const conectar = (instancia: string, numero?: string) =>
   evo<{ pairingCode?: string | null; code?: string; base64?: string }>(
-    `/instance/connect/${instancia}${numero ? `?number=${numero}` : ""}`
+    `/instance/connect/${inst(instancia)}${numero ? `?number=${encodeURIComponent(numero)}` : ""}`
   );
 
 export const estadoConexao = (instancia: string) =>
-  evo<{ instance?: { state?: string } }>(`/instance/connectionState/${instancia}`).then(
+  evo<{ instance?: { state?: string } }>(`/instance/connectionState/${inst(instancia)}`).then(
     (r) => r.instance?.state ?? "close"
   );
 
@@ -64,7 +70,7 @@ export const estadoConexao = (instancia: string) =>
  */
 export async function listarGrupos(instancia: string): Promise<{ id: string; nome: string }[]> {
   const r = await evo<{ remoteJid?: string; pushName?: string | null; isGroup?: boolean }[]>(
-    `/chat/findContacts/${instancia}`,
+    `/chat/findContacts/${inst(instancia)}`,
     { method: "POST", body: "{}" },
     TIMEOUT_GRUPOS_MS
   );
@@ -83,7 +89,7 @@ export async function listarGrupos(instancia: string): Promise<{ id: string; nom
 }
 
 export const enviarTexto = (instancia: string, jid: string, texto: string) =>
-  evo(`/message/sendText/${instancia}`, {
+  evo(`/message/sendText/${inst(instancia)}`, {
     method: "POST",
     body: JSON.stringify({ number: jid, text: texto }),
   });

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ehAdministrador } from "@/lib/admin";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v ?? "").toString().trim();
@@ -16,6 +17,7 @@ export async function adicionarEmailPermitido(formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user || !(await ehAdministrador(supabase, user.id))) return;
 
   await supabase.from("emails_permitidos").insert({
     email,
@@ -28,6 +30,10 @@ export async function adicionarEmailPermitido(formData: FormData) {
 
 export async function removerEmailPermitido(email: string) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !(await ehAdministrador(supabase, user.id))) return;
   await supabase.from("emails_permitidos").delete().eq("email", email);
   revalidatePath("/configuracoes");
 }

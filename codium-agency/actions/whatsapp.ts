@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ehAdministrador } from "@/lib/admin";
 import { conectar, criarInstancia, estadoConexao, listarGrupos, INSTANCIA_PADRAO } from "@/lib/whatsapp";
 import { avisarClienteConteudo, pendentesDoCliente } from "@/lib/avisos-servidor";
 
@@ -56,6 +57,7 @@ export async function iniciarConexao(
 ): Promise<{ erro?: string; qr?: string; codigo?: string }> {
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
+  if (!(await ehAdministrador(supabase, user.id))) return { erro: "Só o administrador pode conectar o WhatsApp." };
   try {
     const instancia = await instanciaAtual(supabase);
     try {
@@ -117,6 +119,7 @@ export async function gruposDisponiveis(forcar = false): Promise<{
 export async function salvarGrupoEquipe(id: string, nome: string): Promise<{ erro?: string }> {
   const { supabase, user } = await usuario();
   if (!user) return { erro: "Não autenticado." };
+  if (!(await ehAdministrador(supabase, user.id))) return { erro: "Só o administrador pode trocar o grupo da equipe." };
   if (!id.endsWith("@g.us")) return { erro: "Grupo inválido." };
   const { error } = await supabase.from("app_config").upsert([
     { chave: "whatsapp_grupo_equipe_id", valor: id },

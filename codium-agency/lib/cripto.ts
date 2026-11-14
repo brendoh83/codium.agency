@@ -16,7 +16,8 @@ export function cifrar(texto: string, chaveHex: string): string {
 export function decifrar(cifrado: string, chaveHex: string): string {
   const [iv, tag, dados] = cifrado.split(".").map((p) => Buffer.from(p, "base64url"));
   if (!iv || !tag || !dados) throw new Error("Dado cifrado inválido.");
-  const d = createDecipheriv("aes-256-gcm", chaveDe(chaveHex), iv);
+  if (tag.length !== 16) throw new Error("Dado cifrado inválido.");
+  const d = createDecipheriv("aes-256-gcm", chaveDe(chaveHex), iv, { authTagLength: 16 });
   d.setAuthTag(tag);
   return Buffer.concat([d.update(dados), d.final()]).toString("utf8");
 }
