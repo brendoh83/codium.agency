@@ -177,3 +177,37 @@ test("sistema fora do ar: pede para postar manualmente", () => {
     "🛑 *Sistema fora do ar: Toque Final*\nTinha a postagem de «Reels» para sáb, 14/11 às 08:00, mas o sistema ficou fora do ar e não foi possível postar.\n\nPoste manualmente."
   );
 });
+
+import { textoCorrecaoAtrasada, textoLembrete } from "./avisos.ts";
+
+test("lembrete: cita quando posta (hoje, amanhã ou dia da semana) e o link", () => {
+  const agora = new Date("2026-11-13T15:00:00Z"); // sex 12:00 em São Paulo
+  assert.equal(
+    textoLembrete({ empresa: "Toque Final", titulo: "Reels", agendadoPara: new Date("2026-11-14T11:00:00Z"), link, jaViu: false, agora }),
+    `⏰ *Falta sua aprovação, Toque Final*\n«Reels»\n\nEstá agendado para amanhã às 08:00.\nAprove por aqui:\n${link}`
+  );
+  assert.match(
+    textoLembrete({ empresa: "A", titulo: "X", agendadoPara: new Date("2026-11-13T21:30:00Z"), link, jaViu: false, agora }),
+    /Está agendado para hoje às 18:30\./
+  );
+  assert.match(
+    textoLembrete({ empresa: "A", titulo: "X", agendadoPara: new Date("2026-11-18T11:00:00Z"), link, jaViu: false, agora }),
+    /Está agendado para qua, 18\/11 às 08:00\./
+  );
+});
+
+test("lembrete: versão diferente quando o cliente já abriu o link", () => {
+  const agora = new Date("2026-11-13T15:00:00Z");
+  const t = textoLembrete({ empresa: "A", titulo: "X", agendadoPara: new Date("2026-11-14T11:00:00Z"), link, jaViu: true, agora });
+  assert.match(t, /Vimos que você abriu/);
+  assert.match(t, /amanhã às 08:00/);
+});
+
+test("correção atrasada: avisa a equipe quantas horas faltam", () => {
+  assert.equal(
+    textoCorrecaoAtrasada({ empresa: "Toque Final", titulo: "Reels", horas: 2 }),
+    "⏳ *Correção pendente: Toque Final*\n«Reels»\n\nO cliente reprovou uma parte e faltam 2 horas para postar. Suba a correção no dashboard."
+  );
+  assert.match(textoCorrecaoAtrasada({ empresa: "A", titulo: "X", horas: 1 }), /falta 1 hora para postar/);
+  assert.match(textoCorrecaoAtrasada({ empresa: "A", titulo: "X", horas: 0 }), /falta menos de 1 hora para postar/);
+});

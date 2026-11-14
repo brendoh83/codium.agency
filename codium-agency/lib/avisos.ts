@@ -172,3 +172,40 @@ export function deveAgrupar(
   const dif = agora.getTime() - t;
   return dif >= 0 && dif < janelaMin * 60_000;
 }
+
+// ---------- lembretes de aprovação ----------
+
+function diaSP(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+/** "hoje às 18:30", "amanhã às 08:00" ou "qua, 18/11 às 08:00". */
+function quandoRelativo(quando: Date, agora: Date): string {
+  const hoje = Date.parse(diaSP(agora));
+  const dia = Date.parse(diaSP(quando));
+  const diff = Math.round((dia - hoje) / 86_400_000);
+  const completo = quandoPostar(quando.toISOString());
+  const hora = completo.slice(completo.lastIndexOf("às "));
+  if (diff === 0) return `hoje ${hora}`;
+  if (diff === 1) return `amanhã ${hora}`;
+  return completo;
+}
+
+export function textoLembrete(i: {
+  empresa: string;
+  titulo: string;
+  agendadoPara: Date;
+  link: string;
+  jaViu: boolean;
+  agora?: Date;
+}): string {
+  const quando = quandoRelativo(i.agendadoPara, i.agora ?? new Date());
+  const abertura = i.jaViu ? "Vimos que você abriu, mas ainda falta a sua decisão.\n" : "";
+  return `⏰ *Falta sua aprovação, ${i.empresa}*\n«${i.titulo}»\n\n${abertura}Está agendado para ${quando}.\nAprove por aqui:\n${i.link}`;
+}
+
+export function textoCorrecaoAtrasada(i: { empresa: string; titulo: string; horas: number }): string {
+  const falta =
+    i.horas < 1 ? "falta menos de 1 hora" : i.horas === 1 ? "falta 1 hora" : `faltam ${i.horas} horas`;
+  return `⏳ *Correção pendente: ${i.empresa}*\n«${i.titulo}»\n\nO cliente reprovou uma parte e ${falta} para postar. Suba a correção no dashboard.`;
+}
