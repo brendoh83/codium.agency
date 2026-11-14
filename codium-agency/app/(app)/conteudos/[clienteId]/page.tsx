@@ -9,6 +9,7 @@ import ConteudosGrade from "@/components/ConteudosGrade";
 import LinkCliente from "@/components/LinkCliente";
 import GrupoCliente from "@/components/GrupoCliente";
 import ConectarInstagram from "@/components/ConectarInstagram";
+import { ehAdministrador } from "@/lib/admin";
 import type { ItemFeed } from "@/components/FeedCliente";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,11 @@ export default async function ConteudosClientePage({
     .eq("id", params.clienteId)
     .maybeSingle();
   if (!cliente) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const admin = user ? await ehAdministrador(supabase, user.id) : false;
 
   const { data: contaIg } = await supabase
     .from("instagram_contas")
@@ -122,6 +128,7 @@ export default async function ConteudosClientePage({
       <ConectarInstagram
         clienteId={cliente.id}
         conta={contaIg}
+        podeConectar={admin}
         resultado={searchParams.ig ? { ok: searchParams.ig === "ok", msg: searchParams.msg } : null}
       />
       <ConteudoUpload clienteId={cliente.id} />

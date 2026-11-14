@@ -10,10 +10,12 @@ const dias = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - D
 export default function ConectarInstagram({
   clienteId,
   conta,
+  podeConectar,
   resultado,
 }: {
   clienteId: string;
   conta: Conta;
+  podeConectar: boolean;
   resultado?: { ok: boolean; msg?: string } | null;
 }) {
   const href = `/api/instagram/connect?cliente=${clienteId}`;
@@ -35,9 +37,13 @@ export default function ConectarInstagram({
       {!conta && (
         <>
           <p className="text-sm text-slate-500">Nenhuma conta conectada.</p>
-          <a href={href} className={botao}>
-            Conectar Instagram
-          </a>
+          {podeConectar ? (
+            <a href={href} className={botao}>
+              Conectar Instagram
+            </a>
+          ) : (
+            <p className="text-xs text-slate-400">Só o administrador conecta.</p>
+          )}
         </>
       )}
 
@@ -53,9 +59,13 @@ export default function ConectarInstagram({
           <p className="text-sm text-slate-600">
             A Meta pediu um novo login. Posts agendados não saem até reconectar.
           </p>
-          <a href={href} className={botao}>
-            Reconectar
-          </a>
+          {podeConectar ? (
+            <a href={href} className={botao}>
+              Reconectar
+            </a>
+          ) : (
+            <p className="text-xs text-slate-400">Só o administrador reconecta.</p>
+          )}
         </>
       )}
 

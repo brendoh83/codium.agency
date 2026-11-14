@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ehAdministrador } from "@/lib/admin";
 import { assinarState, urlAutorizacao } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export async function GET(req: Request) {
 
   const voltar = (msg: string) =>
     NextResponse.redirect(`${origem()}/conteudos/${clienteId}?ig=erro&msg=${encodeURIComponent(msg)}`);
+
+  if (!(await ehAdministrador(supabase, user.id))) return voltar("Só o administrador pode conectar o Instagram.");
 
   const appId = process.env.IG_APP_ID;
   const segredo = process.env.IG_APP_SECRET;

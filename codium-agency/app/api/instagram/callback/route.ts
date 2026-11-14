@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ehAdministrador } from "@/lib/admin";
 import { cifrar } from "@/lib/cripto";
 import { lerState, perfil, tornarLongo, trocarCodigo } from "@/lib/instagram";
 
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
       `${origem()}/conteudos/${lido.clienteId}?ig=${ok ? "ok" : "erro"}${msg ? `&msg=${encodeURIComponent(msg)}` : ""}`
     );
 
+  if (!(await ehAdministrador(supabase, user.id))) return voltar(false, "Só o administrador pode conectar o Instagram.");
   if (url.searchParams.get("error")) return voltar(false, "A conexão foi cancelada no Instagram.");
   const codigo = url.searchParams.get("code");
   if (!codigo || !appId || !appSecret || !chave) return voltar(false, "Não foi possível concluir a conexão.");
