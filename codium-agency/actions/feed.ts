@@ -2,7 +2,7 @@
 
 import { createPublicClient } from "@/lib/supabase/publico";
 import { mensagemErro } from "@/lib/conteudos";
-import { textoDecisao, textoDecisaoParte } from "@/lib/avisos";
+import { textoAprovouPartes, textoDecisao, textoDecisaoParte } from "@/lib/avisos";
 import type { Parte } from "@/lib/conteudos";
 import { enviarTexto } from "@/lib/whatsapp";
 
@@ -78,5 +78,29 @@ export async function responderParte(
   await avisarEquipe(supabase, token, versaoId, (d) =>
     textoDecisaoParte({ ...d, parte, decisao, motivo, sugeridaPara })
   );
+  return {};
+}
+
+/** "Aprovar tudo": aprova várias partes e manda UMA mensagem só para a equipe. */
+export async function aprovarPartes(
+  token: string,
+  conteudoId: string,
+  versaoId: string,
+  partes: Parte[]
+): Promise<{ erro?: string }> {
+  if (partes.length === 0) return {};
+  const supabase = createPublicClient();
+  for (const parte of partes) {
+    const { error } = await supabase.rpc("responder_parte", {
+      p_token: token,
+      p_conteudo_id: conteudoId,
+      p_parte: parte,
+      p_decisao: "aprovado",
+      p_motivo: null,
+      p_sugerida_para: null,
+    });
+    if (error) return { erro: mensagemErro(error.message) };
+  }
+  await avisarEquipe(supabase, token, versaoId, (d) => textoAprovouPartes({ ...d, partes }));
   return {};
 }

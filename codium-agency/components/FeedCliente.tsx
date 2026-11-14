@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { responderParte, responderVersao } from "@/actions/feed";
+import { aprovarPartes, responderParte, responderVersao } from "@/actions/feed";
 import { dataHoraSaoPauloParaUtc, validarAgendamento } from "@/lib/agendamento";
 import type { Parte } from "@/lib/conteudos";
 
@@ -500,11 +500,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
       } else if (parte) {
         r = await responderParte(token, item.id, item.versaoId, parte, decisao, decisao === "reprovado" ? motivo : null, sugerida);
       } else {
-        r = {};
-        for (const p of pendentes) {
-          r = await responderParte(token, item.id, item.versaoId, p, "aprovado", null);
-          if (r.erro) break;
-        }
+        r = await aprovarPartes(token, item.id, item.versaoId, pendentes);
       }
       if (r.erro) return setErro(r.erro);
       if (decisao === "aprovado") {

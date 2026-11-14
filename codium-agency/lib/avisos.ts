@@ -69,6 +69,18 @@ export function textoDecisaoParte(i: {
   return `❌ ${i.empresa} reprovou ${NOME_PARTE[i.parte]} de «${i.titulo}»${motivo ? `: ${motivo}` : ""}`;
 }
 
+/** Uma mensagem para várias partes aprovadas de uma vez ("Aprovar tudo"). */
+export function textoAprovouPartes(i: {
+  empresa: string;
+  titulo: string;
+  partes: ("midia" | "legenda" | "data")[];
+}): string {
+  if (i.partes.length >= 3) return `✅ ${i.empresa} aprovou tudo de «${i.titulo}» (mídia, legenda e data)`;
+  const nomes = i.partes.map((p) => NOME_PARTE[p]);
+  const lista = nomes.join(" e ");
+  return `✅ ${i.empresa} aprovou ${lista} de «${i.titulo}»`;
+}
+
 export function deveAgrupar(
   ultimoOk: string | Date | null | undefined,
   agora: Date,

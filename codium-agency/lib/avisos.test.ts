@@ -105,3 +105,23 @@ test("textoDecisaoParte: sugestao de data formatada em Sao Paulo", () => {
     "✅ A aprovou a data de «X»"
   );
 });
+
+import { textoAprovouPartes } from "./avisos.ts";
+
+test("textoAprovouPartes: tudo aprovado vira uma mensagem so", () => {
+  assert.equal(
+    textoAprovouPartes({ empresa: "A", titulo: "X", partes: ["midia", "legenda", "data"] }),
+    "✅ A aprovou tudo de «X» (mídia, legenda e data)"
+  );
+});
+
+test("textoAprovouPartes: so algumas partes", () => {
+  assert.equal(
+    textoAprovouPartes({ empresa: "A", titulo: "X", partes: ["midia", "legenda"] }),
+    "✅ A aprovou a mídia e a legenda de «X»"
+  );
+  assert.equal(
+    textoAprovouPartes({ empresa: "A", titulo: "X", partes: ["data"] }),
+    "✅ A aprovou a data de «X»"
+  );
+});
