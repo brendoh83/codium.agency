@@ -22,7 +22,7 @@ export default function GrupoCliente({
   function carregar() {
     setAviso(null);
     start(async () => {
-      const r = await gruposDisponiveis();
+      const r = await gruposDisponiveis(true);
       if (r.erro) return setAviso(r.erro);
       setGrupos(r.grupos ?? []);
     });

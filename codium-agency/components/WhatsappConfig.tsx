@@ -65,7 +65,7 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
   function carregarGrupos() {
     setErro(null);
     start(async () => {
-      const r = await gruposDisponiveis();
+      const r = await gruposDisponiveis(true);
       if (r.erro) return setErro(r.erro);
       setGrupos(r.grupos ?? []);
     });
