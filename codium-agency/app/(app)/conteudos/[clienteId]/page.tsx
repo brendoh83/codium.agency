@@ -8,6 +8,7 @@ import ConteudoUpload from "@/components/ConteudoUpload";
 import ConteudosGrade from "@/components/ConteudosGrade";
 import LinkCliente from "@/components/LinkCliente";
 import GrupoCliente from "@/components/GrupoCliente";
+import ConectarInstagram from "@/components/ConectarInstagram";
 import type { ItemFeed } from "@/components/FeedCliente";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,13 @@ export const maxDuration = 60;
 type VersaoComChave = Versao & { r2_key: string; previa_ok?: boolean };
 type Item = Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] };
 
-export default async function ConteudosClientePage({ params }: { params: { clienteId: string } }) {
+export default async function ConteudosClientePage({
+  params,
+  searchParams,
+}: {
+  params: { clienteId: string };
+  searchParams: { ig?: string; msg?: string };
+}) {
   const supabase = createClient();
   const { data: cliente } = await supabase
     .from("clientes")
@@ -24,6 +31,12 @@ export default async function ConteudosClientePage({ params }: { params: { clien
     .eq("id", params.clienteId)
     .maybeSingle();
   if (!cliente) notFound();
+
+  const { data: contaIg } = await supabase
+    .from("instagram_contas")
+    .select("username, token_expira_em, status, autodm_workspace_id")
+    .eq("cliente_id", cliente.id)
+    .maybeSingle();
 
   const { data: conteudos } = await supabase
     .from("conteudos")
@@ -105,6 +118,11 @@ export default async function ConteudosClientePage({ params }: { params: { clien
         clienteId={cliente.id}
         atualId={cliente.whatsapp_grupo_id}
         atualNome={cliente.whatsapp_grupo_nome}
+      />
+      <ConectarInstagram
+        clienteId={cliente.id}
+        conta={contaIg}
+        resultado={searchParams.ig ? { ok: searchParams.ig === "ok", msg: searchParams.msg } : null}
       />
       <ConteudoUpload clienteId={cliente.id} />
 
