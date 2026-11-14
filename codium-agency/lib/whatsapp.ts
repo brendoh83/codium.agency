@@ -98,8 +98,11 @@ export async function listarGrupos(instancia: string): Promise<{ id: string; nom
 }
 
 /** Derruba a sessão autenticada. Necessário antes de trocar de número: reconectar sem isso mantém a sessão velha presa no servidor. */
-export const desconectar = (instancia: string) =>
-  evo(`/instance/logout/${inst(instancia)}`, { method: "DELETE" });
+export async function desconectar(instancia: string): Promise<void> {
+  // logout e apagar: cada um pode falhar se a instância já está desconectada/inexistente; o que importa é sumir com a sessão e os contatos velhos
+  await evo(`/instance/logout/${inst(instancia)}`, { method: "DELETE" }).catch(() => null);
+  await evo(`/instance/delete/${inst(instancia)}`, { method: "DELETE" }).catch(() => null);
+}
 
 export const enviarTexto = (instancia: string, jid: string, texto: string) =>
   evo(`/message/sendText/${inst(instancia)}`, {

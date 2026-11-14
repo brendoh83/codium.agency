@@ -69,7 +69,15 @@ export async function iniciarConexao(
       await criarInstancia(instancia);
     }
     await supabase.from("app_config").upsert({ chave: "whatsapp_instancia", valor: instancia });
-    const r = await conectar(instancia, numero?.replace(/\D/g, "") || undefined);
+    const num = numero?.replace(/\D/g, "") || undefined;
+    let r = await conectar(instancia, num);
+    if (!r.base64 && !r.pairingCode) {
+      // instância num estado torto (sem QR): apaga e recria do zero
+      await desconectar(instancia);
+      await criarInstancia(instancia);
+      r = await conectar(instancia, num);
+    }
+    if (!r.base64 && !r.pairingCode) return { erro: "O servidor não devolveu o QR. Tente de novo em alguns segundos." };
     return { qr: r.base64, codigo: r.pairingCode ?? undefined };
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Falha ao conectar." };
