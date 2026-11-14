@@ -30,14 +30,29 @@ test("enviarTexto: POST com apikey e corpo {number, text}", async () => {
   assert.deepEqual(await r.json(), { number: "1203630@g.us", text: "olá" });
 });
 
-test("listarGrupos: usa a lista de contatos (rápida), só grupos, nome do pushName, ordenado", async () => {
-  const s = stub({ json: [
-    { remoteJid: "2@g.us", pushName: "Zeta", isGroup: true },
-    { remoteJid: "5511999990000@s.whatsapp.net", pushName: "Pessoa", isGroup: false },
-    { remoteJid: "1@g.us", pushName: "Alecrim Store", isGroup: true },
-    { remoteJid: "3@g.us", pushName: null, isGroup: true },
-    { remoteJid: "1@g.us", pushName: "Alecrim Store", isGroup: true },
-  ] });
+/** fetch falso que responde por caminho: { "/group/fetchAllGroups/x": {...} } */
+function stubPorCaminho(respostas: Record<string, { status?: number; json?: unknown }>) {
+  const chamadas: Request[] = [];
+  const antes = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const req = new Request(input, init);
+    chamadas.push(req);
+    const r = respostas[new URL(req.url).pathname] ?? { status: 404, json: {} };
+    return new Response(JSON.stringify(r.json ?? {}), { status: r.status ?? 200 });
+  }) as typeof fetch;
+  return { chamadas, restaurar: () => { globalThis.fetch = antes; } };
+}
+
+test("listarGrupos: consulta ao vivo os grupos do número conectado (não o histórico guardado)", async () => {
+  const s = stubPorCaminho({
+    "/group/fetchAllGroups/codium-agencia": { json: [
+      { id: "2@g.us", subject: "Zeta" },
+      { id: "1@g.us", subject: "Alecrim Store" },
+      { id: "3@g.us", subject: "" },
+      { id: "1@g.us", subject: "Alecrim Store" },
+      { id: "5511999990000@s.whatsapp.net", subject: "não é grupo" },
+    ] },
+  });
   let grupos;
   try { grupos = await listarGrupos("codium-agencia"); } finally { s.restaurar(); }
   assert.deepEqual(grupos, [
@@ -45,9 +60,39 @@ test("listarGrupos: usa a lista de contatos (rápida), só grupos, nome do pushN
     { id: "2@g.us", nome: "Zeta" },
     { id: "3@g.us", nome: "3@g.us" },
   ]);
-  const r = s.chamadas[0];
-  assert.equal(r.method, "POST");
-  assert.equal(new URL(r.url).pathname, "/chat/findContacts/codium-agencia");
+  assert.equal(s.chamadas.length, 1, "não cai na lista de contatos quando a consulta ao vivo responde");
+  assert.equal(new URL(s.chamadas[0].url).search, "?getParticipants=false");
+});
+
+test("listarGrupos: número sem grupos devolve vazio, sem mostrar grupos de número antigo", async () => {
+  const s = stubPorCaminho({
+    "/group/fetchAllGroups/codium-agencia": { json: [] },
+    "/chat/findContacts/codium-agencia": { json: [{ remoteJid: "9@g.us", pushName: "Grupo do número antigo" }] },
+  });
+  let grupos;
+  try { grupos = await listarGrupos("codium-agencia"); } finally { s.restaurar(); }
+  assert.deepEqual(grupos, []);
+});
+
+test("listarGrupos: se a consulta ao vivo falhar, usa a lista de contatos (só grupos, nome do pushName, ordenado)", async () => {
+  const s = stubPorCaminho({
+    "/group/fetchAllGroups/codium-agencia": { status: 500, json: {} },
+    "/chat/findContacts/codium-agencia": { json: [
+      { remoteJid: "2@g.us", pushName: "Zeta", isGroup: true },
+      { remoteJid: "5511999990000@s.whatsapp.net", pushName: "Pessoa", isGroup: false },
+      { remoteJid: "1@g.us", pushName: "Alecrim Store", isGroup: true },
+      { remoteJid: "3@g.us", pushName: null, isGroup: true },
+    ] },
+  });
+  let grupos;
+  try { grupos = await listarGrupos("codium-agencia"); } finally { s.restaurar(); }
+  assert.deepEqual(grupos, [
+    { id: "1@g.us", nome: "Alecrim Store" },
+    { id: "2@g.us", nome: "Zeta" },
+    { id: "3@g.us", nome: "3@g.us" },
+  ]);
+  assert.equal(s.chamadas[1].method, "POST");
+  assert.equal(new URL(s.chamadas[1].url).pathname, "/chat/findContacts/codium-agencia");
 });
 
 test("estadoConexao lê instance.state", async () => {

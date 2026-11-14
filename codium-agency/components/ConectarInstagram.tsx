@@ -1,3 +1,5 @@
+import LigarAutodm from "@/components/LigarAutodm";
+
 type Conta = {
   username: string | null;
   token_expira_em: string;
@@ -53,6 +55,7 @@ export default function ConectarInstagram({
           {conta.autodm_workspace_id ? " · AutoDM ligado" : ""}
         </p>
       )}
+      {conta && podeConectar && <LigarAutodm clienteId={clienteId} atualId={conta.autodm_workspace_id} />}
 
       {reconectar && (
         <>
