@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ehAdministrador } from "@/lib/admin";
-import { conectar, criarInstancia, estadoConexao, listarGrupos, INSTANCIA_PADRAO } from "@/lib/whatsapp";
+import { conectar, criarInstancia, estadoConexao, listarGrupos, numeroConectado, INSTANCIA_PADRAO } from "@/lib/whatsapp";
 import { avisarClienteConteudo, pendentesDoCliente } from "@/lib/avisos-servidor";
 
 async function usuario() {
@@ -36,9 +36,11 @@ export async function statusWhatsapp() {
   const mapa = new Map((cfg ?? []).map((c: any) => [c.chave, c.valor]));
   const configurado = Boolean(process.env.EVOLUTION_URL && process.env.EVOLUTION_API_KEY);
   let estado = "nao_configurado";
+  let numero: string | null = null;
   if (configurado) {
     try {
       estado = await estadoConexao(instancia);
+      if (estado === "open") numero = await numeroConectado(instancia).catch(() => null);
     } catch {
       estado = "sem_instancia";
     }
@@ -47,6 +49,7 @@ export async function statusWhatsapp() {
   return {
     instancia,
     estado,
+    numero,
     grupoEquipe: idEquipe ? { id: idEquipe, nome: mapa.get("whatsapp_grupo_equipe_nome") ?? idEquipe } : null,
     configurado,
   };

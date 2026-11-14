@@ -64,6 +64,15 @@ export const estadoConexao = (instancia: string) =>
     (r) => r.instance?.state ?? "close"
   );
 
+/** Número (ownerJid) atualmente autenticado na instância. Null se não achar. */
+export async function numeroConectado(instancia: string): Promise<string | null> {
+  const r = await evo<{ instance?: { owner?: string } }[]>(
+    `/instance/fetchInstances?instanceName=${inst(instancia)}`
+  );
+  const dono = Array.isArray(r) ? r[0]?.instance?.owner : undefined;
+  return dono ? dono.replace(/@.*$/, "").replace(/:\d+$/, "") : null;
+}
+
 /**
  * Lista os grupos a partir dos contatos já sincronizados no servidor.
  * O endpoint /group/fetchAllGroups consulta o WhatsApp ao vivo e trava em contas com muitos grupos.

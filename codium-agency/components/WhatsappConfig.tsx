@@ -93,6 +93,7 @@ export default function WhatsappConfig({ status, avisos }: { status: Status; avi
           {ESTADO[estado] ?? estado}
         </span>
         <span className="text-xs text-slate-400">Instância: {status.instancia}</span>
+        {status.numero && <span className="text-xs text-slate-400">· Número: {status.numero}</span>}
       </div>
 
       {!status.configurado && (
