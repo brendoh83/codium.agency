@@ -112,3 +112,66 @@ export async function perfil(
   }
   return { igUserId: String(r.user_id), username: String(r.username), tipoConta: tipo };
 }
+
+// ---------- publicar ----------
+
+async function postar(deps: Deps, caminho: string, token: string, campos: Record<string, string | undefined>): Promise<any> {
+  const corpo = new URLSearchParams({ access_token: token });
+  for (const [k, v] of Object.entries(campos)) if (v !== undefined) corpo.set(k, v);
+  return pedir(deps, `${GRAPH}/v23.0${caminho}`, { method: "POST", body: corpo });
+}
+
+export type TipoContainer = "imagem" | "reels" | "item_carrossel" | "carrossel";
+
+export async function criarContainer(
+  deps: Deps,
+  token: string,
+  i: { igUserId: string; tipo: TipoContainer; url?: string; legenda?: string; filhos?: string[] }
+): Promise<{ id: string }> {
+  const campos: Record<string, string | undefined> =
+    i.tipo === "imagem"
+      ? { image_url: i.url, caption: i.legenda }
+      : i.tipo === "item_carrossel"
+        ? { image_url: i.url, is_carousel_item: "true" }
+        : i.tipo === "carrossel"
+          ? { media_type: "CAROUSEL", children: i.filhos?.join(","), caption: i.legenda }
+          : { media_type: "REELS", video_url: i.url, caption: i.legenda };
+  const r = await postar(deps, `/${i.igUserId}/media`, token, campos);
+  return { id: String(r.id) };
+}
+
+export async function statusContainer(
+  deps: Deps,
+  token: string,
+  id: string
+): Promise<"em_andamento" | "pronto" | "erro"> {
+  const u = new URL(`${GRAPH}/v23.0/${id}`);
+  u.searchParams.set("fields", "status_code");
+  u.searchParams.set("access_token", token);
+  const r = await pedir(deps, u.toString());
+  const s = String(r.status_code);
+  if (s === "FINISHED" || s === "PUBLISHED") return "pronto";
+  if (s === "ERROR" || s === "EXPIRED") return "erro";
+  return "em_andamento";
+}
+
+export async function publicarContainer(
+  deps: Deps,
+  token: string,
+  i: { igUserId: string; creationId: string }
+): Promise<{ id: string }> {
+  const r = await postar(deps, `/${i.igUserId}/media_publish`, token, { creation_id: i.creationId });
+  return { id: String(r.id) };
+}
+
+export async function permalink(deps: Deps, token: string, mediaId: string): Promise<string | null> {
+  try {
+    const u = new URL(`${GRAPH}/v23.0/${mediaId}`);
+    u.searchParams.set("fields", "permalink");
+    u.searchParams.set("access_token", token);
+    const r = await pedir(deps, u.toString());
+    return r.permalink ? String(r.permalink) : null;
+  } catch {
+    return null;
+  }
+}

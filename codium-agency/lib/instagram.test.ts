@@ -83,3 +83,56 @@ test("perfil: Business ou Creator passa; conta pessoal é recusada", async () =>
   const pessoal = fetchFalso({ user_id: "7", username: "x", account_type: "PERSONAL" });
   await assert.rejects(perfil({ fetch: pessoal.fetch }, "t"), /Profissional|Business|Criador/i);
 });
+
+import { criarContainer, permalink, publicarContainer, statusContainer } from "./instagram.ts";
+
+test("criarContainer: imagem, item de carrossel, carrossel e reels", async () => {
+  const f = fetchFalso({ id: "c1" });
+  const deps = { fetch: f.fetch };
+  assert.deepEqual(await criarContainer(deps, "tok", { igUserId: "u", tipo: "imagem", url: "https://a/i.jpg", legenda: "oi #x" }), { id: "c1" });
+  assert.match(f.chamadas[0].url, /graph\.instagram\.com\/v23\.0\/u\/media$/);
+  const corpo = new URLSearchParams(String(f.chamadas[0].init?.body));
+  assert.equal(corpo.get("image_url"), "https://a/i.jpg");
+  assert.equal(corpo.get("caption"), "oi #x");
+  assert.equal(corpo.get("access_token"), "tok");
+
+  await criarContainer(deps, "tok", { igUserId: "u", tipo: "item_carrossel", url: "https://a/1.jpg" });
+  const item = new URLSearchParams(String(f.chamadas[1].init?.body));
+  assert.equal(item.get("is_carousel_item"), "true");
+  assert.equal(item.get("caption"), null);
+
+  await criarContainer(deps, "tok", { igUserId: "u", tipo: "carrossel", filhos: ["a", "b"], legenda: "x" });
+  const pai = new URLSearchParams(String(f.chamadas[2].init?.body));
+  assert.equal(pai.get("media_type"), "CAROUSEL");
+  assert.equal(pai.get("children"), "a,b");
+
+  await criarContainer(deps, "tok", { igUserId: "u", tipo: "reels", url: "https://a/v.mp4", legenda: "x" });
+  const reels = new URLSearchParams(String(f.chamadas[3].init?.body));
+  assert.equal(reels.get("media_type"), "REELS");
+  assert.equal(reels.get("video_url"), "https://a/v.mp4");
+});
+
+test("statusContainer traduz os estados da Meta", async () => {
+  for (const [meta, esperado] of [
+    ["IN_PROGRESS", "em_andamento"],
+    ["FINISHED", "pronto"],
+    ["PUBLISHED", "pronto"],
+    ["ERROR", "erro"],
+    ["EXPIRED", "erro"],
+  ] as const) {
+    const f = fetchFalso({ status_code: meta });
+    assert.equal(await statusContainer({ fetch: f.fetch }, "t", "c1"), esperado);
+  }
+});
+
+test("publicarContainer e permalink", async () => {
+  const f = fetchFalso({ id: "m1" });
+  assert.deepEqual(await publicarContainer({ fetch: f.fetch }, "t", { igUserId: "u", creationId: "c1" }), { id: "m1" });
+  assert.match(f.chamadas[0].url, /\/u\/media_publish$/);
+  assert.equal(new URLSearchParams(String(f.chamadas[0].init?.body)).get("creation_id"), "c1");
+
+  const p = fetchFalso({ permalink: "https://www.instagram.com/p/X/" });
+  assert.equal(await permalink({ fetch: p.fetch }, "t", "m1"), "https://www.instagram.com/p/X/");
+  const e = fetchFalso({ error: { code: 100 } }, 400);
+  assert.equal(await permalink({ fetch: e.fetch }, "t", "m1"), null);
+});
