@@ -32,7 +32,23 @@ export interface ItemFeed {
   motivoLegenda?: string | null;
   /** Data que o cliente sugeriu (quando reprovou a data) e o recado. */
   sugestaoData?: { para: string; recado: string | null } | null;
+  /** Andamento da postagem no Instagram (só painel da equipe). */
+  postagem?: {
+    estado: "agendada" | "postando" | "postada" | "falhou" | "perdeu_horario" | "cancelada";
+    permalink: string | null;
+    erro: string | null;
+  } | null;
 }
+
+/** Selo do andamento da postagem: texto + cor. */
+export const SELO_POSTAGEM = {
+  agendada: { texto: "Agendado", cls: "bg-navy-900 text-white" },
+  postando: { texto: "Postando…", cls: "bg-copper-600 text-white" },
+  postada: { texto: "Postado", cls: "bg-ok text-white" },
+  falhou: { texto: "Falhou", cls: "bg-danger text-white" },
+  perdeu_horario: { texto: "Perdeu o horário", cls: "bg-warn text-white" },
+  cancelada: { texto: "Aguardando aprovação", cls: "bg-slate-500 text-white" },
+} as const;
 
 export const ETIQUETA = {
   pendente: { texto: "Pendente", cls: "bg-warn text-white" },
@@ -395,6 +411,13 @@ export function Miniatura({
           <svg viewBox="0 0 12 12" className="ml-0.5 h-2.5 w-2.5 fill-white">
             <path d="M2.5 1.5v9l8-4.5z" />
           </svg>
+        </span>
+      )}
+      {item.postagem && (
+        <span
+          className={`absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${SELO_POSTAGEM[item.postagem.estado].cls}`}
+        >
+          {SELO_POSTAGEM[item.postagem.estado].texto}
         </span>
       )}
       {item.estado === "pendente" && item.numero > 1 && (

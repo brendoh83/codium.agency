@@ -480,6 +480,29 @@ export async function editarLegenda(i: { clienteId: string; conteudoId: string; 
   return {};
 }
 
+/** Falhou ao postar: volta para a fila, só se ainda estiver dentro da janela de atraso (a fila recusa depois). */
+export async function tentarNovamente(i: { clienteId: string; conteudoId: string }): Promise<Resultado> {
+  const supabase = createClient();
+  const { data: p } = await supabase
+    .from("postagens")
+    .select("id, estado, agendado_para")
+    .eq("conteudo_id", i.conteudoId)
+    .eq("cliente_id", i.clienteId)
+    .maybeSingle();
+  if (!p || p.estado !== "falhou") return { erro: "Esta postagem não está com falha." };
+  if (Date.now() - new Date(p.agendado_para).getTime() > 10 * 60_000) {
+    return { erro: "Passou do horário. Escolha uma nova data em Reagendar." };
+  }
+  const { error } = await supabase
+    .from("postagens")
+    .update({ estado: "agendada", erro: null, tentativas: 0, proxima_tentativa: null, creation_id: null })
+    .eq("id", p.id)
+    .eq("estado", "falhou");
+  if (error) return { erro: "Não foi possível tentar de novo." };
+  revalidatePath(`/conteudos/${i.clienteId}`);
+  return {};
+}
+
 /** Nova data de postagem. `aprovada: true` só ao confirmar a sugestão do cliente. */
 export async function reagendar(i: {
   clienteId: string;

@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { editarLegenda, excluirConteudo, reagendar } from "@/actions/conteudos";
+import { editarLegenda, excluirConteudo, reagendar, tentarNovamente } from "@/actions/conteudos";
 import { dataHoraSaoPauloParaUtc, validarLegenda } from "@/lib/agendamento";
 import ConteudoUpload from "@/components/ConteudoUpload";
-import { ETIQUETA, Midia, Miniatura, type ItemFeed } from "@/components/FeedCliente";
+import { ETIQUETA, Midia, Miniatura, SELO_POSTAGEM, type ItemFeed } from "@/components/FeedCliente";
 
 const fmtSP = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
@@ -151,6 +151,47 @@ function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: str
         </div>
 
         <Midia item={item} grande />
+
+        {item.postagem && (
+          <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${SELO_POSTAGEM[item.postagem.estado].cls}`}>
+              {SELO_POSTAGEM[item.postagem.estado].texto}
+            </span>
+            {item.postagem.estado === "postada" && item.postagem.permalink && (
+              <p>
+                <a href={item.postagem.permalink} target="_blank" rel="noopener noreferrer" className="text-copper-600 underline">
+                  Ver no Instagram
+                </a>
+              </p>
+            )}
+            {item.postagem.estado === "falhou" && (
+              <>
+                {item.postagem.erro && <p className="text-xs text-danger">{item.postagem.erro}</p>}
+                <button
+                  type="button"
+                  disabled={pendente}
+                  onClick={() =>
+                    start(async () => {
+                      setErro(null);
+                      const r = await tentarNovamente({ clienteId, conteudoId: item.id });
+                      if (r.erro) return setErro(r.erro);
+                      router.refresh();
+                    })
+                  }
+                  className="block rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                >
+                  Tentar de novo
+                </button>
+              </>
+            )}
+            {item.postagem.estado === "perdeu_horario" && (
+              <p className="text-xs text-slate-500">Passou do horário. Escolha uma nova data em &quot;Mudar a data&quot;.</p>
+            )}
+            {item.postagem.estado === "cancelada" && (
+              <p className="text-xs text-slate-500">Mudou algo e voltou para aprovação do cliente.</p>
+            )}
+          </div>
+        )}
 
         <Agenda item={item} clienteId={clienteId} />
 

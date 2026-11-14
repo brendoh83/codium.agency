@@ -27,15 +27,54 @@ const TIPO_LABEL: Record<string, string> = {
   despesa_proxima: "Despesa próxima do vencimento",
   avulso_atrasado: "Parcela de avulso atrasada",
   avulso_proximo: "Parcela de avulso próxima",
+  postagem_falhou: "Postagem falhou",
+  postagem_perdeu_horario: "Postagem perdeu o horário",
+  instagram_reconectar: "Instagram desconectado",
+  instagram_vence: "Instagram vence em breve",
 };
 
 export default async function AlertasPage() {
   const supabase = createClient();
   const { data: alertas } = await supabase.from("v_alertas").select("*").order("nivel");
 
-  const criticos = (alertas ?? []).filter((a: any) => a.nivel === "critico");
-  const atencao = (alertas ?? []).filter((a: any) => a.nivel === "atencao");
-  const positivos = (alertas ?? []).filter((a: any) => a.nivel === "positivo");
+  // Instagram: postagens com problema e contas que precisam reconectar (não passam pela view financeira)
+  const { data: postProblema } = await supabase
+    .from("postagens")
+    .select("cliente_id, estado, clientes(empresa), conteudos(titulo)")
+    .in("estado", ["falhou", "perdeu_horario"]);
+  const { data: contasIg } = await supabase
+    .from("instagram_contas")
+    .select("cliente_id, status, token_expira_em, clientes(empresa)");
+  const em10dias = Date.now() + 10 * 86_400_000;
+  const extras: any[] = [
+    ...(postProblema ?? []).map((p: any) => ({
+      nivel: "critico",
+      tipo: p.estado === "falhou" ? "postagem_falhou" : "postagem_perdeu_horario",
+      cliente_id: p.cliente_id,
+      href: `/conteudos/${p.cliente_id}`,
+      mensagem:
+        p.estado === "falhou"
+          ? `${p.clientes?.empresa}: falhou ao postar «${p.conteudos?.titulo}»`
+          : `${p.clientes?.empresa}: «${p.conteudos?.titulo}» perdeu o horário`,
+    })),
+    ...(contasIg ?? [])
+      .filter((c: any) => c.status === "reconectar" || new Date(c.token_expira_em).getTime() < em10dias)
+      .map((c: any) => ({
+        nivel: c.status === "reconectar" ? "critico" : "atencao",
+        tipo: c.status === "reconectar" ? "instagram_reconectar" : "instagram_vence",
+        cliente_id: c.cliente_id,
+        href: `/conteudos/${c.cliente_id}`,
+        mensagem:
+          c.status === "reconectar"
+            ? `${c.clientes?.empresa}: reconecte o Instagram`
+            : `${c.clientes?.empresa}: conexão do Instagram vence em breve`,
+      })),
+  ];
+  const todos = [...(alertas ?? []), ...extras];
+
+  const criticos = todos.filter((a: any) => a.nivel === "critico");
+  const atencao = todos.filter((a: any) => a.nivel === "atencao");
+  const positivos = todos.filter((a: any) => a.nivel === "positivo");
 
   return (
     <div className="space-y-6">
@@ -50,7 +89,7 @@ export default async function AlertasPage() {
         {[...criticos, ...atencao, ...positivos].map((a: any, i: number) => (
           <Link
             key={i}
-            href={a.cliente_id ? `/clientes/${a.cliente_id}` : String(a.tipo).startsWith("despesa") ? "/despesas" : String(a.tipo).startsWith("avulso") ? "/avulsos" : "#"}
+            href={a.href ?? (a.cliente_id ? `/clientes/${a.cliente_id}` : String(a.tipo).startsWith("despesa") ? "/despesas" : String(a.tipo).startsWith("avulso") ? "/avulsos" : "#")}
             className={`flex items-center justify-between gap-3 rounded-xl border p-4 text-sm hover:brightness-95 ${NIVEL_STYLE[a.nivel]}`}
           >
             <div className="flex items-center gap-3">
@@ -62,7 +101,7 @@ export default async function AlertasPage() {
             </div>
           </Link>
         ))}
-        {(alertas ?? []).length === 0 && (
+        {todos.length === 0 && (
           <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
             Nenhum alerta no momento. Tudo sob controle. 🎉
           </p>

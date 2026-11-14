@@ -66,6 +66,12 @@ export default async function ConteudosClientePage({
     }))
     .filter((c) => c.versoes.length > 0);
 
+  const { data: postagens } = await supabase
+    .from("postagens")
+    .select("conteudo_id, estado, permalink, erro")
+    .eq("cliente_id", cliente.id);
+  const postagemDe = new Map((postagens ?? []).map((p: any) => [p.conteudo_id, p]));
+
   const { topo, aprovados } = separarFeed(itens as unknown as Conteudo[]);
   const porId = new Map(itens.map((c) => [c.id, c]));
 
@@ -90,6 +96,9 @@ export default async function ConteudosClientePage({
         ultimaData?.decisao === "reprovado" && ultimaData.sugerida_para
           ? { para: ultimaData.sugerida_para, recado: ultimaData.motivo }
           : null,
+      postagem: postagemDe.get(c.id)
+        ? { estado: postagemDe.get(c.id).estado, permalink: postagemDe.get(c.id).permalink, erro: postagemDe.get(c.id).erro }
+        : null,
       versaoId: atual.id,
       numero: atual.numero,
       slides,
