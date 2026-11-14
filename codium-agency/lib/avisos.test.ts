@@ -138,3 +138,42 @@ test("linkDoCliente tira barra final da origem", () => {
   assert.equal(linkDoCliente("https://x.app/", "tok"), "https://x.app/c/tok");
   assert.equal(linkDoCliente("https://x.app", "tok"), "https://x.app/c/tok");
 });
+
+import { textoFalhaPostagem, textoPerdeuHorarioCliente, textoPerdeuHorarioEquipe, textoPostada, textoSistemaFora } from "./avisos.ts";
+
+test("perdeu o horário: cliente com nome e link", () => {
+  assert.equal(
+    textoPerdeuHorarioCliente({ empresa: "Toque Final", titulo: "Reels", link }),
+    `Olá, Toque Final! 👋 «Reels» não foi postado porque faltou a sua aprovação.\n\nSe puder aprovar agora, a gente já vê o melhor dia e horário para postar:\n${link}`
+  );
+});
+
+test("perdeu o horário: equipe diz o que faltou e quando seria", () => {
+  assert.equal(
+    textoPerdeuHorarioEquipe({ empresa: "Toque Final", titulo: "Reels", faltou: ["legenda"], agendadoPara: sab }),
+    "⚠️ *Não foi postado: Toque Final*\n«Reels»\n\nFaltou aprovar a legenda até sáb, 14/11 às 08:00.\nEscolha uma nova data no dashboard."
+  );
+  assert.match(
+    textoPerdeuHorarioEquipe({ empresa: "A", titulo: "X", faltou: ["midia", "data"], agendadoPara: sab }),
+    /Faltou aprovar a mídia e a data até/
+  );
+});
+
+test("postado e falha para a equipe", () => {
+  assert.equal(
+    textoPostada({ empresa: "Toque Final", titulo: "Reels", link: "https://www.instagram.com/p/X/" }),
+    "🚀 *Postado: Toque Final*\n«Reels»\n\nhttps://www.instagram.com/p/X/"
+  );
+  assert.equal(textoPostada({ empresa: "A", titulo: "X", link: null }), "🚀 *Postado: A*\n«X»");
+  assert.equal(
+    textoFalhaPostagem({ empresa: "A", titulo: "X", erro: "A Meta recusou o pedido." }),
+    "🛑 *Falhou ao postar: A*\n«X»\n\nMotivo: A Meta recusou o pedido.\nTente de novo no dashboard."
+  );
+});
+
+test("sistema fora do ar: pede para postar manualmente", () => {
+  assert.equal(
+    textoSistemaFora({ empresa: "Toque Final", titulo: "Reels", agendadoPara: sab }),
+    "🛑 *Sistema fora do ar: Toque Final*\nTinha a postagem de «Reels» para sáb, 14/11 às 08:00, mas o sistema ficou fora do ar e não foi possível postar.\n\nPoste manualmente."
+  );
+});

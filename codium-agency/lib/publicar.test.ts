@@ -46,7 +46,7 @@ const imagem = { tipo: "imagem" as const, legenda: "oi", urls: ["https://r2/a.jp
 test("imagem: cria, publica e marca postada com o link", async () => {
   const { deps, chamadas, salvos } = montar({});
   const r = await publicarPostagem(deps, { postagem: base, conteudo: imagem, igUserId: "u1" });
-  assert.deepEqual(r, { resultado: "postada" });
+  assert.deepEqual(r, { resultado: "postada", link: "https://www.instagram.com/p/ABC/" });
   assert.deepEqual(chamadas.filter((c) => !c.startsWith("salvar")), ["criar:imagem", "status", "publicar"]);
   const final = salvos.at(-1)!;
   assert.equal(final.estado, "postada");

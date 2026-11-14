@@ -24,3 +24,15 @@ test("validarAgendamento: recusa passado, aceita futuro", () => {
   assert.equal(validarAgendamento("2026-11-13T12:01:00.000Z", agora), null);
   assert.ok(validarAgendamento("invalida", agora));
 });
+
+import { validarMidiaInstagram } from "./agendamento.ts";
+
+test("validarMidiaInstagram: imagem só JPG; vídeo só MP4 ou MOV", () => {
+  assert.equal(validarMidiaInstagram(["image/jpeg"]), null);
+  assert.equal(validarMidiaInstagram(["image/jpeg", "image/jpeg"]), null);
+  assert.equal(validarMidiaInstagram(["video/mp4"]), null);
+  assert.equal(validarMidiaInstagram(["video/quicktime"]), null);
+  assert.match(validarMidiaInstagram(["image/png"])!, /JPG/);
+  assert.match(validarMidiaInstagram(["image/jpeg", "image/webp"])!, /JPG/);
+  assert.match(validarMidiaInstagram(["video/webm"])!, /MP4/);
+});

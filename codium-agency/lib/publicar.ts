@@ -34,7 +34,7 @@ export async function publicarPostagem(
     conteudo: { tipo: "imagem" | "video" | "carrossel"; legenda: string; urls: string[] };
     igUserId: string;
   }
-): Promise<{ resultado: "postada" | "aguardando" | "falhou"; erro?: string }> {
+): Promise<{ resultado: "postada" | "aguardando" | "falhou"; erro?: string; link?: string | null }> {
   const { ig, salvar } = deps;
   const { postagem, conteudo, igUserId } = i;
   if (postagem.ig_media_id) return { resultado: "postada" };
@@ -78,7 +78,7 @@ export async function publicarPostagem(
       permalink: link,
       postado_em: deps.agora().toISOString(),
     });
-    return { resultado: "postada" };
+    return { resultado: "postada", link };
   } catch (e) {
     const erro = e instanceof Error ? e.message : "Erro ao postar.";
     const tentativas = postagem.tentativas + 1;

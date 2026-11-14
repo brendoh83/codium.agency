@@ -11,7 +11,7 @@ import {
   validarCarrossel,
 } from "@/lib/conteudos";
 import { apagarObjeto } from "@/lib/r2";
-import { validarAgendamento, validarLegenda } from "@/lib/agendamento";
+import { validarAgendamento, validarLegenda, validarMidiaInstagram } from "@/lib/agendamento";
 import { avisarClienteConteudo } from "@/lib/avisos-servidor";
 
 /** Dias que o arquivo fica disponível; precisa bater com a regra de ciclo de vida do bucket R2. */
@@ -52,6 +52,10 @@ export async function registrarConteudo(i: {
   if (!titulo) return { erro: "Informe um título." };
   const erroAgenda = validarAgenda(i);
   if (erroAgenda) return { erro: erroAgenda };
+  if (i.legenda?.trim()) {
+    const erroMidia = validarMidiaInstagram([i.mime]);
+    if (erroMidia) return { erro: erroMidia };
+  }
   const erro = validarArquivo(i.mime, i.tamanho);
   const tipo = tipoPorMime(i.mime);
   if (erro || !tipo) return { erro: erro ?? "Tipo de arquivo inválido." };
@@ -281,6 +285,10 @@ export async function registrarCarrossel(i: {
   if (!titulo) return { erro: "Informe um título." };
   const erroAgenda = validarAgenda(i);
   if (erroAgenda) return { erro: erroAgenda };
+  if (i.legenda?.trim()) {
+    const erroMidia = validarMidiaInstagram(i.arquivos.map((a) => a.mime));
+    if (erroMidia) return { erro: erroMidia };
+  }
   const erro = validarEnvioCarrossel(i.clienteId, i.arquivos);
   if (erro) return { erro };
 

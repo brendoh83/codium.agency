@@ -27,3 +27,16 @@ export function validarAgendamento(isoUtc: string, agora: Date): string | null {
   if (t <= agora.getTime()) return "Escolha uma data e hora no futuro.";
   return null;
 }
+
+/** O Instagram só publica imagem JPG e vídeo MP4/MOV; avisa antes de agendar algo que não vai conseguir postar. */
+export function validarMidiaInstagram(mimes: string[]): string | null {
+  for (const m of mimes) {
+    if (m.startsWith("image/") && m !== "image/jpeg") {
+      return "Para postar automático, o Instagram só aceita imagem em JPG. Converta a imagem para JPG e envie de novo.";
+    }
+    if (m.startsWith("video/") && m !== "video/mp4" && m !== "video/quicktime") {
+      return "Para postar automático, o Instagram só aceita vídeo em MP4 ou MOV. Converta o vídeo e envie de novo.";
+    }
+  }
+  return null;
+}

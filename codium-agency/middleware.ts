@@ -29,8 +29,10 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = path.startsWith("/login");
   const isPublicAsset = path.startsWith("/_next") || path.startsWith("/favicon");
   const isPublicFeed = path.startsWith("/c/");
+  // chamado pelo banco a cada minuto; a própria rota confere o segredo (x-cron-secret)
+  const isCron = path.startsWith("/api/cron/");
 
-  if (!user && !isAuthRoute && !isPublicAsset && !isPublicFeed) {
+  if (!user && !isAuthRoute && !isPublicAsset && !isPublicFeed && !isCron) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

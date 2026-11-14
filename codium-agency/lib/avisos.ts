@@ -113,6 +113,54 @@ export function textoAprovouPartes(i: {
   return `✅ *${i.empresa} aprovou ${lista}*\n«${i.titulo}»${linhaPosta(i.agendadoPara)}`;
 }
 
+const NOME_PARTE_SOLTA = { midia: "a mídia", legenda: "a legenda", data: "a data" } as const;
+
+/** Grupo do cliente: o horário passou e faltou aprovação. */
+export function textoPerdeuHorarioCliente(i: { empresa: string; titulo: string; link: string }): string {
+  return `Olá, ${i.empresa}! 👋 «${i.titulo}» não foi postado porque faltou a sua aprovação.
+
+Se puder aprovar agora, a gente já vê o melhor dia e horário para postar:
+${i.link}`;
+}
+
+/** Grupo da equipe: o horário passou e faltou aprovação. */
+export function textoPerdeuHorarioEquipe(i: {
+  empresa: string;
+  titulo: string;
+  faltou: ("midia" | "legenda" | "data")[];
+  agendadoPara: string;
+}): string {
+  const lista = i.faltou.map((p) => NOME_PARTE_SOLTA[p]).join(" e ");
+  return `⚠️ *Não foi postado: ${i.empresa}*
+«${i.titulo}»
+
+Faltou aprovar ${lista} até ${quandoPostar(i.agendadoPara)}.
+Escolha uma nova data no dashboard.`;
+}
+
+export function textoPostada(i: { empresa: string; titulo: string; link: string | null }): string {
+  return `🚀 *Postado: ${i.empresa}*
+«${i.titulo}»${i.link ? `
+
+${i.link}` : ""}`;
+}
+
+export function textoFalhaPostagem(i: { empresa: string; titulo: string; erro: string }): string {
+  return `🛑 *Falhou ao postar: ${i.empresa}*
+«${i.titulo}»
+
+Motivo: ${cortar(limpar(i.erro), MOTIVO_MAX)}
+Tente de novo no dashboard.`;
+}
+
+/** Só equipe: na hora de postar o sistema estava fora do ar. */
+export function textoSistemaFora(i: { empresa: string; titulo: string; agendadoPara: string }): string {
+  return `🛑 *Sistema fora do ar: ${i.empresa}*
+Tinha a postagem de «${i.titulo}» para ${quandoPostar(i.agendadoPara)}, mas o sistema ficou fora do ar e não foi possível postar.
+
+Poste manualmente.`;
+}
+
 export function deveAgrupar(
   ultimoOk: string | Date | null | undefined,
   agora: Date,
