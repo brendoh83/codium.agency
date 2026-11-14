@@ -2,38 +2,55 @@
 
 import { createPublicClient } from "@/lib/supabase/publico";
 import { mensagemErro } from "@/lib/conteudos";
-import { textoAprovouPartes, textoDecisao, textoDecisaoParte } from "@/lib/avisos";
+import { textoAprovouPartes, textoConfirmacaoCliente, textoDecisao, textoDecisaoParte } from "@/lib/avisos";
 import type { Parte } from "@/lib/conteudos";
 import { enviarTexto } from "@/lib/whatsapp";
 
-async function avisarEquipe(
+type DadosAviso = { empresa: string; titulo: string; agendadoPara: string | null };
+
+/**
+ * Avisa o grupo da equipe e confirma no grupo do cliente (assim ele não precisa escrever "aprovado" no grupo).
+ * Melhor esforço: a decisão do cliente já foi gravada, falha de WhatsApp não desfaz nada.
+ */
+async function avisarDecisao(
   supabase: ReturnType<typeof createPublicClient>,
   token: string,
   versaoId: string,
-  montarTexto: (d: { empresa: string; titulo: string }) => string
+  montar: (d: DadosAviso) => { equipe: string; cliente: string }
 ) {
   try {
     const { data } = await supabase.rpc("dados_aviso_decisao", { p_token: token, p_versao_id: versaoId });
-    if (!data || !data.grupo_equipe_id) return;
-    const texto = montarTexto({ empresa: data.empresa, titulo: data.titulo });
-    let ok = true;
-    let erro: string | null = null;
-    try {
-      await enviarTexto(data.instancia, data.grupo_equipe_id, texto);
-    } catch (e) {
-      ok = false;
-      erro = e instanceof Error ? e.message : String(e);
+    if (!data) return;
+    const textos = montar({ empresa: data.empresa, titulo: data.titulo, agendadoPara: data.agendado_para ?? null });
+    const envios: { destino: string | null; texto: string; registrar: boolean }[] = [
+      { destino: data.grupo_equipe_id, texto: textos.equipe, registrar: true },
+      { destino: data.grupo_cliente_id, texto: textos.cliente, registrar: false },
+    ];
+    for (const e of envios) {
+      if (!e.destino) continue;
+      let ok = true;
+      let erro: string | null = null;
+      try {
+        await enviarTexto(data.instancia, e.destino, e.texto);
+      } catch (err) {
+        ok = false;
+        erro = err instanceof Error ? err.message : String(err);
+      }
+      if (e.registrar) {
+        await supabase
+          .rpc("registrar_aviso", {
+            p_token: token,
+            p_versao_id: versaoId,
+            p_destino: e.destino,
+            p_texto: e.texto,
+            p_ok: ok,
+            p_erro: erro,
+          })
+          .then(undefined, () => undefined);
+      }
     }
-    await supabase.rpc("registrar_aviso", {
-      p_token: token,
-      p_versao_id: versaoId,
-      p_destino: data.grupo_equipe_id,
-      p_texto: texto,
-      p_ok: ok,
-      p_erro: erro,
-    });
   } catch {
-    /* aviso é melhor esforço: a decisão do cliente já foi gravada */
+    /* aviso é melhor esforço */
   }
 }
 
@@ -51,7 +68,10 @@ export async function responderVersao(
     p_motivo: motivo,
   });
   if (error) return { erro: mensagemErro(error.message) };
-  await avisarEquipe(supabase, token, versaoId, (d) => textoDecisao({ ...d, decisao, motivo }));
+  await avisarDecisao(supabase, token, versaoId, (d) => ({
+    equipe: textoDecisao({ ...d, decisao, motivo }),
+    cliente: textoConfirmacaoCliente({ ...d, tipo: decisao === "aprovado" ? "aprovou" : "reprovou" }),
+  }));
   return {};
 }
 
@@ -75,9 +95,13 @@ export async function responderParte(
     p_sugerida_para: sugeridaPara ?? null,
   });
   if (error) return { erro: mensagemErro(error.message) };
-  await avisarEquipe(supabase, token, versaoId, (d) =>
-    textoDecisaoParte({ ...d, parte, decisao, motivo, sugeridaPara })
-  );
+  await avisarDecisao(supabase, token, versaoId, (d) => ({
+    equipe: textoDecisaoParte({ ...d, parte, decisao, motivo, sugeridaPara }),
+    cliente: textoConfirmacaoCliente({
+      ...d,
+      tipo: decisao === "aprovado" ? "aprovou" : parte === "data" ? "sugeriu" : "reprovou",
+    }),
+  }));
   return {};
 }
 
@@ -101,6 +125,9 @@ export async function aprovarPartes(
     });
     if (error) return { erro: mensagemErro(error.message) };
   }
-  await avisarEquipe(supabase, token, versaoId, (d) => textoAprovouPartes({ ...d, partes }));
+  await avisarDecisao(supabase, token, versaoId, (d) => ({
+    equipe: textoAprovouPartes({ ...d, partes }),
+    cliente: textoConfirmacaoCliente({ ...d, tipo: "aprovou" }),
+  }));
   return {};
 }

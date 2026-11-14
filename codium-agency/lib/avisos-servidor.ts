@@ -88,15 +88,31 @@ export async function avisarClienteConteudo(i: {
     }
 
     const link = linkDoCliente(origemDoSite(), cliente.link_token);
-    const texto =
-      i.tipo === "nova_versao"
-        ? textoNovaVersao({ empresa: cliente.empresa, titulo: i.titulo, link })
-        : textoConteudoNovo({
-            empresa: cliente.empresa,
-            titulo: i.titulo,
-            pendentes: (await pendentesDoCliente(supabase, clienteId)).length,
-            link,
-          });
+    let texto: string;
+    if (i.tipo === "nova_versao") {
+      texto = textoNovaVersao({ empresa: cliente.empresa, titulo: i.titulo, link });
+    } else {
+      const pendentes = await pendentesDoCliente(supabase, clienteId);
+      const { data: conteudo } = await supabase
+        .from("conteudos")
+        .select("id, conteudo_datas(numero, agendado_para)")
+        .eq("cliente_id", clienteId)
+        .eq("titulo", i.titulo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const datas = ((conteudo?.conteudo_datas ?? []) as { numero: number; agendado_para: string }[]).sort(
+        (a, b) => b.numero - a.numero
+      );
+      texto = textoConteudoNovo({
+        empresa: cliente.empresa,
+        titulo: i.titulo,
+        pendentes: pendentes.length,
+        titulos: pendentes.map((p) => p.titulo),
+        agendadoPara: datas[0]?.agendado_para ?? null,
+        link,
+      });
+    }
 
     const instancia = await instanciaConfigurada(supabase);
     try {

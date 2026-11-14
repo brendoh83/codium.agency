@@ -454,6 +454,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
   const [erro, setErro] = useState<string | null>(null);
   const [saindo, setSaindo] = useState(false);
   const [aprovado, setAprovado] = useState(false);
+  const [confirmaSaida, setConfirmaSaida] = useState(false);
 
   const porPartes = !!item.partes && item.partes.legenda !== null && item.partes.data !== null;
   const pendentes: Parte[] = porPartes
@@ -475,11 +476,18 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
     };
   }, []);
 
+  /** Se o cliente ainda não respondeu, pergunta antes de sair. */
+  function pedirSaida() {
+    if (podeResponder && !aprovado) setConfirmaSaida(true);
+    else fechar();
+  }
+
   useEffect(() => {
     function tecla(e: KeyboardEvent) {
       if (e.key !== "Escape" || pendente || aprovado) return;
-      if (modo === "confirmar") setModo(null);
-      else fechar();
+      if (confirmaSaida) setConfirmaSaida(false);
+      else if (modo === "confirmar") setModo(null);
+      else pedirSaida();
     }
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
@@ -523,7 +531,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         saindo ? "motion-safe:animate-fade-out" : "motion-safe:animate-fade-in"
       }`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && modo === null && !pendente) fechar();
+        if (e.target === e.currentTarget && modo === null && !pendente) pedirSaida();
       }}
     >
       <div
@@ -552,7 +560,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
           </div>
           <button
             type="button"
-            onClick={fechar}
+            onClick={pedirSaida}
             aria-label="Fechar"
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-paper ${TOQUE} ${FOCO}`}
           >
@@ -756,6 +764,38 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
         )}
         </div>
       </div>
+
+      {confirmaSaida && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 p-5 motion-safe:animate-fade-in">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sair-titulo"
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-dialog motion-safe:animate-modal-in"
+          >
+            <p id="sair-titulo" className="font-display text-xl font-medium leading-snug text-navy-900">
+              Você ainda não respondeu
+            </p>
+            <p className="mt-1.5 text-sm text-muted-ink">
+              Este conteúdo não foi aprovado nem reprovado. Antes de sair, toque em um dos botões. Tem certeza que deseja sair?
+            </p>
+            <div className="mt-6 flex gap-2.5">
+              <button onClick={() => setConfirmaSaida(false)} className={`flex-1 ${BOTAO_APROVAR}`}>
+                Voltar e responder
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmaSaida(false);
+                  fechar();
+                }}
+                className={`flex-1 ${BOTAO_SECUNDARIO}`}
+              >
+                Sair mesmo assim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modo === "confirmar" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 p-5 motion-safe:animate-fade-in">
