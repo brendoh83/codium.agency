@@ -116,6 +116,7 @@ export function mensagemErro(msg: string): string {
   if (msg.includes("motivo obrigatorio")) return "Escreva o motivo da reprovação.";
   if (msg.includes("ja respondida")) return "Este conteúdo já foi respondido.";
   if (msg.includes("arquivo expirado")) return "O arquivo expirou. Peça uma nova versão.";
+  if (msg.includes("data sugerida obrigatoria")) return "Escolha o dia e a hora que prefere.";
   if (msg.includes("versao antiga")) return "Existe uma versão mais nova deste conteúdo.";
   return "Não foi possível enviar. Tente de novo.";
 }

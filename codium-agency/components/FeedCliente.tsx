@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { responderVersao } from "@/actions/feed";
+import { responderParte, responderVersao } from "@/actions/feed";
+import { dataHoraSaoPauloParaUtc, validarAgendamento } from "@/lib/agendamento";
+import type { Parte } from "@/lib/conteudos";
 
 export interface ItemFeed {
   id: string;
@@ -435,16 +437,29 @@ function Verificado() {
   );
 }
 
+const fmtPostagem = (iso: string) => {
+  const p = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${v("weekday")}, ${v("day")}/${v("month")} às ${v("hour")}:${v("minute")}`;
+};
+
 function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onFechar: () => void }) {
   const router = useRouter();
   const [pendente, start] = useTransition();
-  const [modo, setModo] = useState<null | "confirmar" | "reprovar">(null);
+  const [modo, setModo] = useState<null | "confirmar" | "reprovar" | "reprovarMidia" | "reprovarLegenda" | "data">(null);
   const [motivo, setMotivo] = useState("");
+  const [novaData, setNovaData] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [saindo, setSaindo] = useState(false);
   const [aprovado, setAprovado] = useState(false);
 
-  const podeResponder = item.estado === "pendente" && !item.expirada;
+  const porPartes = !!item.partes && item.partes.legenda !== null && item.partes.data !== null;
+  const pendentes: Parte[] = porPartes
+    ? (["midia", "legenda", "data"] as const).filter((p) => item.partes![p] === "pendente")
+    : [];
+  const podeResponder = porPartes ? pendentes.length > 0 && !item.expirada : item.estado === "pendente" && !item.expirada;
 
   function fechar() {
     if (reduzMovimento()) return onFechar();
@@ -470,10 +485,27 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
     return () => window.removeEventListener("keydown", tecla);
   });
 
-  function enviar(decisao: "aprovado" | "reprovado") {
+  function enviar(decisao: "aprovado" | "reprovado", parte?: Parte) {
     setErro(null);
+    let sugerida: string | null = null;
+    if (parte === "data" && decisao === "reprovado") {
+      sugerida = dataHoraSaoPauloParaUtc(novaData);
+      const e = sugerida ? validarAgendamento(sugerida, new Date()) : "Escolha o dia e a hora que prefere.";
+      if (e) return setErro(e);
+    }
     start(async () => {
-      const r = await responderVersao(token, item.versaoId, decisao, decisao === "reprovado" ? motivo : null);
+      let r: { erro?: string };
+      if (!porPartes) {
+        r = await responderVersao(token, item.versaoId, decisao, decisao === "reprovado" ? motivo : null);
+      } else if (parte) {
+        r = await responderParte(token, item.id, item.versaoId, parte, decisao, decisao === "reprovado" ? motivo : null, sugerida);
+      } else {
+        r = {};
+        for (const p of pendentes) {
+          r = await responderParte(token, item.id, item.versaoId, p, "aprovado", null);
+          if (r.erro) break;
+        }
+      }
       if (r.erro) return setErro(r.erro);
       if (decisao === "aprovado") {
         // Mostra o "check" antes de atualizar a grade e fechar.
@@ -565,10 +597,23 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             Baixar arquivo
           </a>
         )}
+        {porPartes && item.agendadoPara && (
+          <div className="mb-3 space-y-2 rounded-xl border border-line px-3.5 py-3">
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.22em] text-copper-700">Legenda</p>
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-navy-900">{item.legenda}</p>
+            <p className="border-t border-line pt-2 text-sm text-muted-ink">
+              Posta em <span className="font-medium text-navy-900">{fmtPostagem(item.agendadoPara)}</span>
+            </p>
+          </div>
+        )}
         {item.estado === "reprovado" && (
-          <p className="flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
+          <p className="mb-3 flex items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-muted-ink">
             <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-copper-500" />
-            Aguardando a nova versão da agência.
+            {!porPartes || item.partes!.midia === "reprovado"
+              ? "Aguardando a nova versão da agência."
+              : item.partes!.legenda === "reprovado"
+                ? "Aguardando a nova legenda da agência."
+                : "Aguardando a agência confirmar a nova data."}
           </p>
         )}
 
@@ -589,7 +634,75 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
           </details>
         )}
 
-        {podeResponder && modo !== "reprovar" && (
+        {podeResponder && porPartes && modo === null && (
+          <div className="space-y-2.5">
+            <button onClick={() => setModo("confirmar")} className={`w-full ${BOTAO_APROVAR}`}>
+              <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4">
+                <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Aprovar tudo
+            </button>
+            <div className="flex flex-wrap gap-2">
+              {pendentes.includes("midia") && (
+                <button onClick={() => { setMotivo(""); setModo("reprovarMidia"); }} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
+                  Reprovar mídia
+                </button>
+              )}
+              {pendentes.includes("legenda") && (
+                <button onClick={() => { setMotivo(""); setModo("reprovarLegenda"); }} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
+                  Reprovar legenda
+                </button>
+              )}
+              {pendentes.includes("data") && (
+                <button onClick={() => { setMotivo(""); setModo("data"); }} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
+                  Sugerir outra data
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {podeResponder && porPartes && (modo === "reprovarMidia" || modo === "reprovarLegenda" || modo === "data") && (
+          <div className="space-y-3 motion-safe:animate-fade-up">
+            {modo === "data" && (
+              <label className="block text-sm font-medium text-navy-900">
+                Qual dia e hora você prefere? <span className="font-normal text-muted-ink">(horário de São Paulo)</span>
+                <input
+                  type="datetime-local"
+                  value={novaData}
+                  onChange={(e) => setNovaData(e.target.value)}
+                  className="mt-1.5 block w-full rounded-xl border border-line bg-paper/60 p-3 text-[16px] text-navy-900"
+                />
+              </label>
+            )}
+            <label htmlFor="motivo" className="block text-sm font-medium text-navy-900">
+              {modo === "data" ? "Recado (opcional)" : modo === "reprovarMidia" ? "O que precisa mudar na mídia?" : "O que precisa mudar na legenda?"}
+              {modo !== "data" && <span className="ml-1 font-normal text-muted-ink">(obrigatório)</span>}
+            </label>
+            <textarea
+              id="motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              className="w-full resize-none rounded-xl border border-line bg-paper/60 p-3.5 text-[16px] leading-relaxed text-navy-900 placeholder:text-muted focus:border-copper-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-copper-100"
+            />
+            <div className="flex gap-2.5">
+              <button onClick={() => { setModo(null); setErro(null); }} className={BOTAO_SECUNDARIO}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => enviar("reprovado", modo === "reprovarMidia" ? "midia" : modo === "reprovarLegenda" ? "legenda" : "data")}
+                disabled={pendente || (modo !== "data" && motivo.trim().length === 0) || (modo === "data" && !novaData)}
+                className={`flex-1 ${BOTAO_PRIMARIO}`}
+              >
+                {pendente ? "Enviando…" : modo === "data" ? "Enviar sugestão" : "Enviar reprovação"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {podeResponder && !porPartes && modo !== "reprovar" && (
           <div className="flex gap-2.5">
             <button onClick={() => setModo("reprovar")} className={`flex-1 ${BOTAO_SECUNDARIO}`}>
               Reprovar
@@ -669,7 +782,7 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             ) : (
               <>
                 <p id="confirmar-titulo" className="font-display text-xl font-medium leading-snug text-navy-900">
-                  Deseja aprovar este conteúdo?
+                  {porPartes ? "Aprovar mídia, legenda e data?" : "Deseja aprovar este conteúdo?"}
                 </p>
                 <p className="mt-1.5 break-words text-sm text-muted-ink">{item.titulo}</p>
                 {erro && (

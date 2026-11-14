@@ -68,3 +68,40 @@ test("linkDoCliente tira barra final da origem", () => {
   assert.equal(linkDoCliente("https://x.app/", "tok"), "https://x.app/c/tok");
   assert.equal(linkDoCliente("https://x.app", "tok"), "https://x.app/c/tok");
 });
+
+import { textoDecisaoParte } from "./avisos.ts";
+
+test("textoDecisaoParte: aprovado por parte", () => {
+  assert.equal(
+    textoDecisaoParte({ empresa: "Toque Final", titulo: "Reels", parte: "legenda", decisao: "aprovado" }),
+    "✅ Toque Final aprovou a legenda de «Reels»"
+  );
+  assert.equal(
+    textoDecisaoParte({ empresa: "A", titulo: "X", parte: "midia", decisao: "aprovado" }),
+    "✅ A aprovou a mídia de «X»"
+  );
+});
+
+test("textoDecisaoParte: reprovado com motivo cortado em 500", () => {
+  assert.equal(
+    textoDecisaoParte({ empresa: "A", titulo: "X", parte: "midia", decisao: "reprovado", motivo: "trocar  a edição" }),
+    "❌ A reprovou a mídia de «X»: trocar a edição"
+  );
+  const longo = textoDecisaoParte({ empresa: "A", titulo: "X", parte: "legenda", decisao: "reprovado", motivo: "a".repeat(600) });
+  assert.ok(longo.endsWith("…"));
+  assert.ok(longo.length < 600);
+});
+
+test("textoDecisaoParte: sugestao de data formatada em Sao Paulo", () => {
+  assert.equal(
+    textoDecisaoParte({
+      empresa: "A", titulo: "X", parte: "data", decisao: "reprovado",
+      sugeridaPara: "2026-11-18T11:00:00.000Z", motivo: "quarta fica melhor",
+    }),
+    "📅 A sugeriu postar «X» em 18/11 às 08:00: quarta fica melhor"
+  );
+  assert.equal(
+    textoDecisaoParte({ empresa: "A", titulo: "X", parte: "data", decisao: "aprovado" }),
+    "✅ A aprovou a data de «X»"
+  );
+});

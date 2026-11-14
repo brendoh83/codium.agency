@@ -42,6 +42,33 @@ export function textoDecisao(i: {
   return `❌ ${i.empresa} reprovou «${i.titulo}»${motivo ? `: ${motivo}` : ""}`;
 }
 
+const NOME_PARTE = { midia: "a mídia", legenda: "a legenda", data: "a data" } as const;
+
+function diaHoraSP(iso: string): string {
+  const p = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${v("day")}/${v("month")} às ${v("hour")}:${v("minute")}`;
+}
+
+export function textoDecisaoParte(i: {
+  empresa: string;
+  titulo: string;
+  parte: "midia" | "legenda" | "data";
+  decisao: "aprovado" | "reprovado";
+  motivo?: string | null;
+  sugeridaPara?: string | null;
+}): string {
+  if (i.decisao === "aprovado") return `✅ ${i.empresa} aprovou ${NOME_PARTE[i.parte]} de «${i.titulo}»`;
+  const motivo = cortar(limpar(i.motivo ?? ""), MOTIVO_MAX);
+  if (i.parte === "data") {
+    const quando = i.sugeridaPara ? ` em ${diaHoraSP(i.sugeridaPara)}` : "";
+    return `📅 ${i.empresa} sugeriu postar «${i.titulo}»${quando}${motivo ? `: ${motivo}` : ""}`;
+  }
+  return `❌ ${i.empresa} reprovou ${NOME_PARTE[i.parte]} de «${i.titulo}»${motivo ? `: ${motivo}` : ""}`;
+}
+
 export function deveAgrupar(
   ultimoOk: string | Date | null | undefined,
   agora: Date,

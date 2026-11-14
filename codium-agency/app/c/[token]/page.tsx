@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/publico";
 import { chavePrevia, urlDownload, urlLeitura } from "@/lib/r2";
-import { comVersoes, estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
+import { comVersoes, estadoGeral, estadoPartes, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import FeedCliente, { type ItemFeed } from "@/components/FeedCliente";
 import { montarSlides } from "@/lib/slides";
 import { AberturaCliente } from "@/components/AberturaCliente";
@@ -13,8 +13,11 @@ export const metadata: Metadata = { title: "Conteúdos para aprovação", robots
 type VersaoComChave = Versao & { r2_key: string; previa_ok?: boolean };
 
 export default async function FeedPage({ params }: { params: { token: string } }) {
-  const { data } = await createPublicClient().rpc("feed_cliente", { p_token: params.token });
+  const supabase = createPublicClient();
+  const { data } = await supabase.rpc("feed_cliente", { p_token: params.token });
   if (!data) notFound();
+  // registra a abertura do link (o banco ignora repetições em 5 min); falha não atrapalha a página
+  await supabase.rpc("registrar_abertura", { p_token: params.token }).then(undefined, () => undefined);
 
   const conteudos = comVersoes(
     (data.conteudos ?? []) as (Omit<Conteudo, "versoes"> & { versoes: VersaoComChave[] })[]
@@ -41,11 +44,17 @@ export default async function FeedPage({ params }: { params: { token: string } }
       ativa && atual.expira_em
         ? Math.max(0, Math.ceil((new Date(atual.expira_em).getTime() - Date.now()) / 86400000))
         : null;
+    const partes = estadoPartes(original as unknown as Conteudo);
+    const ultimaLegenda = [...(original.legendas ?? [])].sort((a, b) => b.numero - a.numero)[0];
+    const ultimaData = [...(original.datas ?? [])].sort((a, b) => b.numero - a.numero)[0];
     return {
       id: c.id,
       titulo: c.titulo,
       tipo: c.tipo,
-      estado: estadoConteudo(original),
+      estado: estadoGeral(partes),
+      partes,
+      legenda: ultimaLegenda?.texto,
+      agendadoPara: ultimaData?.agendado_para,
       versaoId: atual.id,
       numero: atual.numero,
       url,

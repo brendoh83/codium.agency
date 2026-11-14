@@ -2,20 +2,20 @@
 
 import { createPublicClient } from "@/lib/supabase/publico";
 import { mensagemErro } from "@/lib/conteudos";
-import { textoDecisao } from "@/lib/avisos";
+import { textoDecisao, textoDecisaoParte } from "@/lib/avisos";
+import type { Parte } from "@/lib/conteudos";
 import { enviarTexto } from "@/lib/whatsapp";
 
 async function avisarEquipe(
   supabase: ReturnType<typeof createPublicClient>,
   token: string,
   versaoId: string,
-  decisao: "aprovado" | "reprovado",
-  motivo: string | null
+  montarTexto: (d: { empresa: string; titulo: string }) => string
 ) {
   try {
     const { data } = await supabase.rpc("dados_aviso_decisao", { p_token: token, p_versao_id: versaoId });
     if (!data || !data.grupo_equipe_id) return;
-    const texto = textoDecisao({ empresa: data.empresa, titulo: data.titulo, decisao, motivo });
+    const texto = montarTexto({ empresa: data.empresa, titulo: data.titulo });
     let ok = true;
     let erro: string | null = null;
     try {
@@ -51,6 +51,32 @@ export async function responderVersao(
     p_motivo: motivo,
   });
   if (error) return { erro: mensagemErro(error.message) };
-  await avisarEquipe(supabase, token, versaoId, decisao, motivo);
+  await avisarEquipe(supabase, token, versaoId, (d) => textoDecisao({ ...d, decisao, motivo }));
+  return {};
+}
+
+/** Resposta por parte (mídia, legenda ou data). `versaoId` só serve para achar o grupo e registrar o aviso. */
+export async function responderParte(
+  token: string,
+  conteudoId: string,
+  versaoId: string,
+  parte: Parte,
+  decisao: "aprovado" | "reprovado",
+  motivo: string | null,
+  sugeridaPara?: string | null
+): Promise<{ erro?: string }> {
+  const supabase = createPublicClient();
+  const { error } = await supabase.rpc("responder_parte", {
+    p_token: token,
+    p_conteudo_id: conteudoId,
+    p_parte: parte,
+    p_decisao: decisao,
+    p_motivo: motivo,
+    p_sugerida_para: sugeridaPara ?? null,
+  });
+  if (error) return { erro: mensagemErro(error.message) };
+  await avisarEquipe(supabase, token, versaoId, (d) =>
+    textoDecisaoParte({ ...d, parte, decisao, motivo, sugeridaPara })
+  );
   return {};
 }
