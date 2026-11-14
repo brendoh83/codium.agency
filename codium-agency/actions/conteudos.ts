@@ -11,6 +11,7 @@ import {
   validarCarrossel,
 } from "@/lib/conteudos";
 import { apagarObjeto } from "@/lib/r2";
+import { validarAgendamento, validarLegenda } from "@/lib/agendamento";
 import { avisarClienteConteudo } from "@/lib/avisos-servidor";
 
 /** Dias que o arquivo fica disponível; precisa bater com a regra de ciclo de vida do bucket R2. */
@@ -22,15 +23,35 @@ function chaveValida(key: string, clienteId: string) {
   return key.startsWith(`clientes/${clienteId}/`) && !key.includes("..");
 }
 
+type Agenda = { legenda?: string; agendadoPara?: string };
+
+/** Legenda e data vêm juntas ou nenhuma (conteúdo antigo, só mídia). */
+function validarAgenda(a: Agenda): string | null {
+  const temLegenda = !!a.legenda?.trim();
+  if (temLegenda !== !!a.agendadoPara) return "Informe a legenda e a data de postagem, ou deixe as duas vazias.";
+  if (!temLegenda) return null;
+  return validarLegenda(a.legenda!) ?? validarAgendamento(a.agendadoPara!, new Date());
+}
+
+async function gravarAgenda(supabase: ReturnType<typeof createClient>, conteudoId: string, a: Agenda) {
+  if (!a.legenda?.trim() || !a.agendadoPara) return null;
+  const { error } = await supabase.from("conteudo_legendas").insert({ conteudo_id: conteudoId, numero: 1, texto: a.legenda.trim() });
+  if (error) return error;
+  const { error: erroData } = await supabase.from("conteudo_datas").insert({ conteudo_id: conteudoId, numero: 1, agendado_para: a.agendadoPara });
+  return erroData;
+}
+
 export async function registrarConteudo(i: {
   clienteId: string;
   titulo: string;
   key: string;
   mime: string;
   tamanho: number;
-}): Promise<Resultado> {
+} & Agenda): Promise<Resultado> {
   const titulo = i.titulo.trim();
   if (!titulo) return { erro: "Informe um título." };
+  const erroAgenda = validarAgenda(i);
+  if (erroAgenda) return { erro: erroAgenda };
   const erro = validarArquivo(i.mime, i.tamanho);
   const tipo = tipoPorMime(i.mime);
   if (erro || !tipo) return { erro: erro ?? "Tipo de arquivo inválido." };
@@ -54,6 +75,10 @@ export async function registrarConteudo(i: {
   if (erroVersao) {
     await supabase.from("conteudos").delete().eq("id", conteudo.id);
     return { erro: "Não foi possível registrar o arquivo." };
+  }
+  if (await gravarAgenda(supabase, conteudo.id, i)) {
+    await supabase.from("conteudos").delete().eq("id", conteudo.id);
+    return { erro: "Não foi possível registrar a legenda e a data." };
   }
   await avisarClienteConteudo({ supabase, clienteId: i.clienteId, tipo: "conteudo_novo", titulo });
   revalidatePath(`/conteudos/${i.clienteId}`);
@@ -251,9 +276,11 @@ export async function registrarCarrossel(i: {
   clienteId: string;
   titulo: string;
   arquivos: ArquivoEnviado[];
-}): Promise<Resultado> {
+} & Agenda): Promise<Resultado> {
   const titulo = i.titulo.trim();
   if (!titulo) return { erro: "Informe um título." };
+  const erroAgenda = validarAgenda(i);
+  if (erroAgenda) return { erro: erroAgenda };
   const erro = validarEnvioCarrossel(i.clienteId, i.arquivos);
   if (erro) return { erro };
 
@@ -284,6 +311,10 @@ export async function registrarCarrossel(i: {
   if (erroArquivos) {
     await supabase.from("conteudos").delete().eq("id", conteudo.id);
     return { erro: "Não foi possível registrar as imagens do carrossel." };
+  }
+  if (await gravarAgenda(supabase, conteudo.id, i)) {
+    await supabase.from("conteudos").delete().eq("id", conteudo.id);
+    return { erro: "Não foi possível registrar a legenda e a data." };
   }
   await avisarClienteConteudo({ supabase, clienteId: i.clienteId, tipo: "conteudo_novo", titulo });
   revalidatePath(`/conteudos/${i.clienteId}`);
@@ -406,6 +437,76 @@ export async function trocarCarrossel(i: {
   if (erroArquivos) return { erro: "Não foi possível gravar as imagens novas. Envie de novo." };
 
   await apagarArquivos(antigas);
+  revalidatePath(`/conteudos/${i.clienteId}`);
+  revalidatePath("/conteudos");
+  return {};
+}
+
+/** Nova revisão da legenda (volta para aprovação; a trava no banco cancela a postagem agendada). */
+export async function editarLegenda(i: { clienteId: string; conteudoId: string; texto: string }): Promise<Resultado> {
+  const erro = validarLegenda(i.texto);
+  if (erro) return { erro };
+  const supabase = createClient();
+  const { data: conteudo } = await supabase
+    .from("conteudos")
+    .select("id, titulo")
+    .eq("id", i.conteudoId)
+    .eq("cliente_id", i.clienteId)
+    .maybeSingle();
+  if (!conteudo) return { erro: "Conteúdo não encontrado." };
+  const { data: ultima } = await supabase
+    .from("conteudo_legendas")
+    .select("numero")
+    .eq("conteudo_id", i.conteudoId)
+    .order("numero", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ultima) return { erro: "Este conteúdo não tem legenda." };
+  const { error } = await supabase
+    .from("conteudo_legendas")
+    .insert({ conteudo_id: i.conteudoId, numero: ultima.numero + 1, texto: i.texto.trim() });
+  if (error) return { erro: "Não foi possível salvar a legenda." };
+  await avisarClienteConteudo({ supabase, clienteId: i.clienteId, tipo: "nova_versao", titulo: conteudo.titulo });
+  revalidatePath(`/conteudos/${i.clienteId}`);
+  revalidatePath("/conteudos");
+  return {};
+}
+
+/** Nova data de postagem. `aprovada: true` só ao confirmar a sugestão do cliente. */
+export async function reagendar(i: {
+  clienteId: string;
+  conteudoId: string;
+  agendadoPara: string;
+  aprovada?: boolean;
+}): Promise<Resultado> {
+  const erro = validarAgendamento(i.agendadoPara, new Date());
+  if (erro) return { erro };
+  const supabase = createClient();
+  const { data: conteudo } = await supabase
+    .from("conteudos")
+    .select("id, titulo")
+    .eq("id", i.conteudoId)
+    .eq("cliente_id", i.clienteId)
+    .maybeSingle();
+  if (!conteudo) return { erro: "Conteúdo não encontrado." };
+  const { data: ultima } = await supabase
+    .from("conteudo_datas")
+    .select("numero")
+    .eq("conteudo_id", i.conteudoId)
+    .order("numero", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ultima) return { erro: "Este conteúdo não tem data de postagem." };
+  const { error } = await supabase.from("conteudo_datas").insert({
+    conteudo_id: i.conteudoId,
+    numero: ultima.numero + 1,
+    agendado_para: i.agendadoPara,
+    ...(i.aprovada ? { decisao: "aprovado", decidido_em: new Date().toISOString() } : {}),
+  });
+  if (error) return { erro: "Não foi possível salvar a data." };
+  if (!i.aprovada) {
+    await avisarClienteConteudo({ supabase, clienteId: i.clienteId, tipo: "nova_versao", titulo: conteudo.titulo });
+  }
   revalidatePath(`/conteudos/${i.clienteId}`);
   revalidatePath("/conteudos");
   return {};

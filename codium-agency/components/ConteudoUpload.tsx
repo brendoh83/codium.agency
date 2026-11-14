@@ -11,6 +11,7 @@ import {
   trocarCarrossel,
 } from "@/actions/conteudos";
 import { MAX_SLIDES, MIN_SLIDES, mimePorArquivo } from "@/lib/conteudos";
+import { dataHoraSaoPauloParaUtc, validarAgendamento, validarLegenda } from "@/lib/agendamento";
 
 /** Falha de rede = a conexão caiu no meio do envio (vale tentar de novo); outras falhas não. */
 class FalhaDeRede extends Error {}
@@ -68,6 +69,8 @@ export default function ConteudoUpload({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [titulo, setTitulo] = useState("");
+  const [legenda, setLegenda] = useState("");
+  const [postarEm, setPostarEm] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [modoCarrossel, setModoCarrossel] = useState(false);
   const [imagens, setImagens] = useState<ItemImagem[]>([]);
@@ -128,13 +131,15 @@ export default function ConteudoUpload({
 
   function limpar() {
     setTitulo("");
+    setLegenda("");
+    setPostarEm("");
     setArquivo(null);
     imagens.forEach((i) => URL.revokeObjectURL(i.previa));
     setImagens([]);
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  async function enviarCarrossel() {
+  async function enviarCarrossel(agenda: { legenda: string; agendadoPara: string } | null) {
     if (imagens.length < MIN_SLIDES) return setErro(`Escolha pelo menos ${MIN_SLIDES} imagens.`);
     const r = await fetch("/api/conteudos/upload-url", {
       method: "POST",
@@ -163,11 +168,11 @@ export default function ConteudoUpload({
       ? await trocarCarrossel({ clienteId, conteudoId: conteudoId as string, arquivos })
       : novaVersao
         ? await registrarNovaVersaoCarrossel({ clienteId, conteudoId: conteudoId as string, arquivos })
-        : await registrarCarrossel({ clienteId, titulo, arquivos });
+        : await registrarCarrossel({ clienteId, titulo, arquivos, ...agenda });
     if (res.erro) throw new Error(res.erro);
   }
 
-  async function enviarUnico() {
+  async function enviarUnico(agenda: { legenda: string; agendadoPara: string } | null) {
     if (!arquivo) return setErro("Escolha um arquivo.");
     const r = await fetch("/api/conteudos/upload-url", {
       method: "POST",
@@ -182,7 +187,7 @@ export default function ConteudoUpload({
       ? await trocarArquivo({ ...base, conteudoId: conteudoId as string })
       : novaVersao
         ? await registrarNovaVersao({ ...base, conteudoId: conteudoId as string })
-        : await registrarConteudo({ ...base, titulo });
+        : await registrarConteudo({ ...base, titulo, ...agenda });
     if (res.erro) throw new Error(res.erro);
   }
 
@@ -192,10 +197,20 @@ export default function ConteudoUpload({
     if (carrossel ? imagens.length === 0 : !arquivo) {
       return setErro(carrossel ? "Escolha as imagens do carrossel." : "Escolha um arquivo.");
     }
+    let agenda: { legenda: string; agendadoPara: string } | null = null;
+    if (!existente) {
+      const erroLegenda = validarLegenda(legenda);
+      if (erroLegenda) return setErro(erroLegenda);
+      const iso = dataHoraSaoPauloParaUtc(postarEm);
+      if (!iso) return setErro("Escolha o dia e a hora da postagem.");
+      const erroData = validarAgendamento(iso, new Date());
+      if (erroData) return setErro(erroData);
+      agenda = { legenda: legenda.trim(), agendadoPara: iso };
+    }
     setPct(0);
     try {
-      if (carrossel) await enviarCarrossel();
-      else await enviarUnico();
+      if (carrossel) await enviarCarrossel(agenda);
+      else await enviarUnico(agenda);
       limpar();
       router.refresh();
       onConcluido?.();
@@ -332,6 +347,30 @@ export default function ConteudoUpload({
           onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
           className="block w-full text-sm text-slate-600"
         />
+      )}
+
+      {!existente && (
+        <>
+          <textarea
+            value={legenda}
+            onChange={(e) => setLegenda(e.target.value)}
+            placeholder="Legenda do post (com as hashtags)"
+            rows={4}
+            maxLength={2200}
+            disabled={ocupado}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <label className="block text-xs text-slate-500">
+            Postar em (horário de São Paulo)
+            <input
+              type="datetime-local"
+              value={postarEm}
+              onChange={(e) => setPostarEm(e.target.value)}
+              disabled={ocupado}
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </label>
+        </>
       )}
 
       <div className="flex items-center gap-3">

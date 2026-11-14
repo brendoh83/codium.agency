@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chavePrevia, urlLeitura } from "@/lib/r2";
 import { montarSlides } from "@/lib/slides";
-import { estadoConteudo, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
+import { estadoGeral, estadoPartes, separarFeed, versaoAtual, type Conteudo, type Versao } from "@/lib/conteudos";
 import ConteudoUpload from "@/components/ConteudoUpload";
 import ConteudosGrade from "@/components/ConteudosGrade";
 import LinkCliente from "@/components/LinkCliente";
@@ -28,7 +28,7 @@ export default async function ConteudosClientePage({ params }: { params: { clien
   const { data: conteudos } = await supabase
     .from("conteudos")
     .select(
-      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, previa_ok, decisao, motivo, decidido_em, conteudo_arquivos(r2_key, mime, ordem))"
+      "id, titulo, tipo, created_at, conteudo_versoes(id, numero, r2_key, mime, created_at, expira_em, previa_ok, decisao, motivo, decidido_em, conteudo_arquivos(r2_key, mime, ordem)), conteudo_legendas(numero, texto, decisao, motivo, decidido_em), conteudo_datas(numero, agendado_para, decisao, motivo, sugerida_para, decidido_em)"
     )
     .eq("cliente_id", cliente.id)
     .order("created_at", { ascending: false });
@@ -39,6 +39,8 @@ export default async function ConteudosClientePage({ params }: { params: { clien
       titulo: c.titulo,
       tipo: c.tipo,
       created_at: c.created_at,
+      legendas: c.conteudo_legendas ?? [],
+      datas: c.conteudo_datas ?? [],
       versoes: ((c.conteudo_versoes ?? []) as any[])
         .map((v) => ({ ...v, arquivos: v.conteudo_arquivos ?? [], expirada: new Date(v.expira_em) < new Date() }))
         .sort((a, b) => a.numero - b.numero) as VersaoComChave[],
@@ -53,11 +55,22 @@ export default async function ConteudosClientePage({ params }: { params: { clien
     const atual = versaoAtual(original) as VersaoComChave;
     const slides =
       c.tipo === "carrossel" && !atual.expirada ? await montarSlides(atual.arquivos, c.titulo) : undefined;
+    const partes = estadoPartes(original as unknown as Conteudo);
+    const ultimaLegenda = [...(original.legendas ?? [])].sort((a, b) => b.numero - a.numero)[0];
+    const ultimaData = [...(original.datas ?? [])].sort((a, b) => b.numero - a.numero)[0];
     return {
       id: c.id,
       titulo: c.titulo,
       tipo: c.tipo,
-      estado: estadoConteudo(original),
+      estado: estadoGeral(partes),
+      partes,
+      legenda: ultimaLegenda?.texto,
+      agendadoPara: ultimaData?.agendado_para,
+      motivoLegenda: ultimaLegenda?.decisao === "reprovado" ? ultimaLegenda.motivo : null,
+      sugestaoData:
+        ultimaData?.decisao === "reprovado" && ultimaData.sugerida_para
+          ? { para: ultimaData.sugerida_para, recado: ultimaData.motivo }
+          : null,
       versaoId: atual.id,
       numero: atual.numero,
       slides,

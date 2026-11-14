@@ -86,10 +86,10 @@ export function comVersoes<T extends { versoes: unknown[] }>(cs: T[]): T[] {
 export function separarFeed<T extends Conteudo>(cs: T[]): { topo: T[]; aprovados: T[] } {
   const porDataDesc = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
   const topo = cs
-    .filter((c) => estadoConteudo(c) !== "aprovado")
+    .filter((c) => estadoGeral(estadoPartes(c)) !== "aprovado")
     .sort((a, b) => porDataDesc(a.created_at, b.created_at));
   const aprovados = cs
-    .filter((c) => estadoConteudo(c) === "aprovado")
+    .filter((c) => estadoGeral(estadoPartes(c)) === "aprovado")
     .sort((a, b) =>
       porDataDesc(versaoAtual(a)?.decidido_em ?? "", versaoAtual(b)?.decidido_em ?? "")
     );

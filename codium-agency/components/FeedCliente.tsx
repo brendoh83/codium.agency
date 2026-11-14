@@ -20,6 +20,16 @@ export interface ItemFeed {
   diasRestantes?: number | null;
   expirada: boolean;
   historico: { numero: number; motivo: string }[];
+  /** Legenda atual (última revisão). */
+  legenda?: string;
+  /** Data de postagem atual (ISO UTC). */
+  agendadoPara?: string;
+  /** Estado de cada parte; null = conteúdo antigo, parte não exigida. */
+  partes?: { midia: "pendente" | "reprovado" | "aprovado"; legenda: "pendente" | "reprovado" | "aprovado" | null; data: "pendente" | "reprovado" | "aprovado" | null };
+  /** Motivo da última legenda reprovada. */
+  motivoLegenda?: string | null;
+  /** Data que o cliente sugeriu (quando reprovou a data) e o recado. */
+  sugestaoData?: { para: string; recado: string | null } | null;
 }
 
 export const ETIQUETA = {

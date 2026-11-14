@@ -2,9 +2,107 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { excluirConteudo } from "@/actions/conteudos";
+import { editarLegenda, excluirConteudo, reagendar } from "@/actions/conteudos";
+import { dataHoraSaoPauloParaUtc, validarLegenda } from "@/lib/agendamento";
 import ConteudoUpload from "@/components/ConteudoUpload";
 import { ETIQUETA, Midia, Miniatura, type ItemFeed } from "@/components/FeedCliente";
+
+const fmtSP = (iso: string) =>
+  new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
+// ponytail: UTC-3 fixo (Brasil sem horário de verão)
+const paraCampoLocal = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3600_000).toISOString().slice(0, 16);
+
+function Agenda({ item, clienteId }: { item: ItemFeed; clienteId: string }) {
+  const router = useRouter();
+  const [pendente, start] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
+  const [texto, setTexto] = useState(item.legenda ?? "");
+  const [quando, setQuando] = useState(item.agendadoPara ? paraCampoLocal(item.agendadoPara) : "");
+  if (!item.legenda || !item.agendadoPara) return null;
+
+  const rodar = (fn: () => Promise<{ erro?: string }>) => {
+    setErro(null);
+    start(async () => {
+      const r = await fn();
+      if (r.erro) return setErro(r.erro);
+      router.refresh();
+    });
+  };
+  const salvarLegenda = () => {
+    const e = validarLegenda(texto);
+    if (e) return setErro(e);
+    rodar(() => editarLegenda({ clienteId, conteudoId: item.id, texto }));
+  };
+  const salvarData = () => {
+    const iso = dataHoraSaoPauloParaUtc(quando);
+    if (!iso) return setErro("Escolha o dia e a hora.");
+    rodar(() => reagendar({ clienteId, conteudoId: item.id, agendadoPara: iso }));
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg bg-slate-50 p-3 text-sm">
+      <p className="text-slate-600">
+        <span className="font-medium">Posta em:</span> {fmtSP(item.agendadoPara)}
+        {item.partes?.data && <span className="ml-2 text-xs text-slate-400">({item.partes.data})</span>}
+      </p>
+
+      {item.sugestaoData && (
+        <div className="space-y-1 rounded-lg border border-copper-500 bg-white p-2">
+          <p>
+            O cliente sugeriu <span className="font-medium">{fmtSP(item.sugestaoData.para)}</span>
+            {item.sugestaoData.recado ? `: ${item.sugestaoData.recado}` : ""}
+          </p>
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() => rodar(() => reagendar({ clienteId, conteudoId: item.id, agendadoPara: item.sugestaoData!.para, aprovada: true }))}
+            className="rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          >
+            Confirmar nova data
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <label className="block flex-1 text-xs text-slate-500">
+          Mudar a data (horário de São Paulo)
+          <input
+            type="datetime-local"
+            value={quando}
+            onChange={(e) => setQuando(e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+          />
+        </label>
+        <button type="button" disabled={pendente} onClick={salvarData} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium disabled:opacity-50">
+          Reagendar
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs text-slate-500">
+          Legenda {item.partes?.legenda && <span className="text-slate-400">({item.partes.legenda})</span>}
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            rows={5}
+            maxLength={2200}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+          />
+        </label>
+        {item.motivoLegenda && <p className="text-xs text-danger">Reprovada: {item.motivoLegenda}</p>}
+        <button
+          type="button"
+          disabled={pendente || texto.trim() === item.legenda.trim()}
+          onClick={salvarLegenda}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium disabled:opacity-50"
+        >
+          Salvar legenda (volta para aprovação)
+        </button>
+      </div>
+      {erro && <p className="text-sm text-danger">{erro}</p>}
+    </div>
+  );
+}
 
 function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: string; onFechar: () => void }) {
   const router = useRouter();
@@ -54,6 +152,8 @@ function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: str
 
         <Midia item={item} grande />
 
+        <Agenda item={item} clienteId={clienteId} />
+
         {item.historico.length > 0 && (
           <ul className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
             {item.historico.map((h) => (
@@ -64,7 +164,7 @@ function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: str
           </ul>
         )}
 
-        {item.estado === "pendente" && (
+        {(item.partes?.midia ?? item.estado) === "pendente" && (
           <div className="space-y-1">
             <p className="text-xs text-slate-500">
               O cliente ainda não respondeu. Enviar outro arquivo substitui este (continua na mesma versão).
@@ -73,7 +173,7 @@ function Detalhe({ item, clienteId, onFechar }: { item: ItemFeed; clienteId: str
           </div>
         )}
 
-        {item.estado === "reprovado" && (
+        {(item.partes?.midia ?? item.estado) === "reprovado" && (
           <div className="space-y-1">
             <p className="text-xs text-slate-500">Reprovado pelo cliente. Suba a correção como nova versão.</p>
             <ConteudoUpload clienteId={clienteId} conteudoId={item.id} tipoConteudo={item.tipo} onConcluido={onFechar} />
