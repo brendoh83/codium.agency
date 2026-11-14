@@ -774,10 +774,10 @@ function Detalhe({ item, token, onFechar }: { item: ItemFeed; token: string; onF
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-dialog motion-safe:animate-modal-in"
           >
             <p id="sair-titulo" className="font-display text-xl font-medium leading-snug text-navy-900">
-              Você ainda não respondeu
+              Aprove ou reprove o conteúdo
             </p>
             <p className="mt-1.5 text-sm text-muted-ink">
-              Este conteúdo não foi aprovado nem reprovado. Antes de sair, toque em um dos botões. Tem certeza que deseja sair?
+              Você precisa tocar em Aprovar ou Reprovar. Tem certeza que deseja sair?
             </p>
             <div className="mt-6 flex gap-2.5">
               <button onClick={() => setConfirmaSaida(false)} className={`flex-1 ${BOTAO_APROVAR}`}>
